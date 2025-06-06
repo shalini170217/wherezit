@@ -1,19 +1,23 @@
 import { Text, View, Image, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
-import { Dimensions,  } from "react-native";
 
 export default function Index() {
-  const router=useRouter();
+  const router = useRouter();
+  
   return (
-    <View className="flex-1 bg-[#030014]">
-      {/* Top background image */}
+    <View style={{ flex: 1, backgroundColor: "#030014" }}>
+      {/* Background images */}
       <Image 
         source={require('../assets/images/bg.png')}
-        className="absolute w-full h-full z-0"
+        style={{
+          position: "absolute",
+          width: "100%",
+          height: "100%",
+          zIndex: 0
+        }}
         resizeMode="cover"
       />
-
-      {/* Bottom background image flipped vertically */}
+      
       <Image
         source={require('../assets/images/bg.png')}
         style={{
@@ -27,20 +31,26 @@ export default function Index() {
         resizeMode="cover"
       />
 
-      <View
-        className="flex-1 justify-center items-center z-10"
-        style={{ paddingTop: 45 }}
-      >
-        <Text
-          className="text-[#a8a8a7] text-6xl font-extrabold tracking-wider"
-          style={{ fontFamily: "Arial" }}
-        >
+      {/* Content */}
+      <View style={{ 
+        flex: 1, 
+        justifyContent: "center", 
+        alignItems: "center",
+        zIndex: 10,
+        paddingTop: 45
+      }}>
+        <Text style={{ 
+          color: "#a8a8a7", 
+          fontSize: 48, 
+          fontWeight: "bold",
+          letterSpacing: 1
+        }}>
           Wherezit
         </Text>
 
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={()=>router.push("/auth")}
+          onPress={() => router.push("/auth")}
           style={{
             marginTop: 20,
             backgroundColor: "#3e4ec7",
@@ -52,24 +62,18 @@ export default function Index() {
             shadowOpacity: 0.3,
             shadowRadius: 5,
             elevation: 8,
-            justifyContent: "center",
-            alignItems: "center",
           }}
         >
-          <Text
-            style={{
-              color: "#a8a8a7",
-              fontSize: 20,
-              fontFamily: "Arial",
-              fontWeight: "bold",
-              letterSpacing: 1,
-            }}
-          >
+          <Text style={{
+            color: "#a8a8a7",
+            fontSize: 20,
+            fontWeight: "bold",
+            letterSpacing: 1,
+          }}>
             Get Started
           </Text>
         </TouchableOpacity>
 
-        {/* New image below the button */}
         <Image
           source={require('../assets/images/search-137.png')}
           style={{
