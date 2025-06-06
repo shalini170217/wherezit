@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string) => {
     try {
       await account.create(ID.unique(), email, password);
-      await signIn(email, password);
+      await signIn(email, password); // safe now
       return null;
     } catch (error) {
       if (error instanceof Error) {
@@ -49,6 +49,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Check and delete any active session before signing in
+      try {
+        const activeSession = await account.getSession("current");
+        if (activeSession) {
+          console.log("⚠️ Deleting existing session before sign in...");
+          await account.deleteSession("current");
+        }
+      } catch {
+        // No session found — that's okay
+      }
+
       await account.createEmailPasswordSession(email, password);
       const session = await account.get();
       setUser(session);
@@ -69,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("⚠️ Sign out failed:", error.message);
     } finally {
       setUser(null);
-      router.replace("/auth"); // 👈 Redirect to auth/login page
+      router.replace("/auth"); // Redirect to login
     }
   };
 

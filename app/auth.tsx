@@ -34,7 +34,7 @@ export default function AuthScreen() {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        router.replace("/");
+        router.replace("/(tabs)/found");
         return true;
       };
 
@@ -74,6 +74,7 @@ export default function AuthScreen() {
           return;
         }
         showSnackbar("Account created successfully!");
+        router.replace("/(tabs)/found");
       } else {
         const error = await signIn(email, password);
         if (error) {
@@ -82,7 +83,7 @@ export default function AuthScreen() {
           return;
         }
         showSnackbar("Logged in successfully!");
-        router.replace("/");
+        router.replace("/(tabs)/found");
       }
     } catch (err) {
       showSnackbar("An unexpected error occurred");
