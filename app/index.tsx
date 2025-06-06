@@ -1,6 +1,8 @@
 import { Text, View, Image, TouchableOpacity } from "react-native";
+import { useRouter } from "expo-router";
 
 export default function Index() {
+  const router=useRouter();
   return (
     <View className="flex-1 bg-[#030014]">
       {/* Top background image */}
@@ -32,11 +34,12 @@ export default function Index() {
           className="text-[#a8a8a7] text-6xl font-extrabold tracking-wider"
           style={{ fontFamily: "Arial" }}
         >
-          Wherezit 
+          Wherezit
         </Text>
 
         <TouchableOpacity
           activeOpacity={0.7}
+          onPress={()=>router.push("/auth")}
           style={{
             marginTop: 20,
             backgroundColor: "#3e4ec7",
