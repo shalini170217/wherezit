@@ -17,6 +17,7 @@ import {
   Snackbar,
 } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient"; // <-- import this
 
 export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -94,12 +95,21 @@ export default function AuthScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Background image flipped vertically at the bottom */}
-      <Image
-        source={require("../assets/images/bg.png")}
-        style={styles.backgroundImage}
-        resizeMode="cover"
-      />
+      {/* Container to hold image and gradient overlay */}
+      <View style={styles.bottomLightContainer}>
+        <Image
+          source={require("../assets/images/light.jpg")}
+          style={[styles.bottomLight, { transform: [{ scaleY: -1 }] }]}
+          resizeMode="cover"
+        />
+        {/* Gradient fades from transparent at bottom to bg color at top */}
+        <LinearGradient
+          colors={["rgba(3,0,20,0)", "#030014"]} 
+          style={styles.gradientOverlay}
+          start={{ x: 0, y: 1 }}
+          end={{ x: 0, y: 0 }}
+        />
+      </View>
 
       <View style={styles.container}>
         <Snackbar
@@ -196,13 +206,26 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  backgroundImage: {
+  bottomLightContainer: {
     position: "absolute",
     bottom: 0,
     width: "100%",
-    height: 400,
-    zIndex: 0,
-    transform: [{ scaleY: -1 }],
+    height: 100,
+    zIndex: 1,
+    borderBottomLeftRadius: 50,
+    borderBottomRightRadius: 50,
+    overflow: "hidden",
+  },
+  bottomLight: {
+    width: "100%",
+    height: "100%",
+  },
+  gradientOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 40, // height of gradient fade from transparent to bg color
   },
   container: {
     flex: 1,
@@ -243,10 +266,11 @@ const styles = StyleSheet.create({
   },
   snackbar: {
     backgroundColor: "#2d60c4",
-    marginTop: Platform.OS === "ios" ? 40 : 20,
+    marginTop: Platform.OS === "ios" ? 40 : 30,
   },
   snackbarWrapper: {
     top: 0,
     zIndex: 100,
   },
 });
+
