@@ -8,7 +8,7 @@ export default function Index() {
     <View style={{ flex: 1, backgroundColor: "#030014" }}>
       {/* Background images */}
       <Image 
-        source={require('../assets/images/bg.png')}
+        source={require('../assets/images/neye.png')}
         style={{
           position: "absolute",
           width: "100%",
@@ -19,7 +19,7 @@ export default function Index() {
       />
       
       <Image
-        source={require('../assets/images/bg.png')}
+        source={require('../assets/images/neye.png')}
         style={{
           position: "absolute",
           bottom: 0,

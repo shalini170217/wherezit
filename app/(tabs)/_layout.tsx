@@ -1,8 +1,8 @@
-import { View, TouchableOpacity, Image } from 'react-native';
+import { View, TouchableOpacity, Image, Text } from 'react-native';
 import React from 'react';
 import { Tabs } from 'expo-router';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useAuth } from '@/lib/auth-context'; // Your auth-context import
+import { useAuth } from '@/lib/auth-context';
 
 const TabsLayout = () => {
   const { signOut, user } = useAuth();
@@ -10,15 +10,19 @@ const TabsLayout = () => {
   const headerRightComponent = () => (
     <View className="flex-row items-center gap-4 pr-4">
       {/* Sign Out Button */}
-      <TouchableOpacity onPress={signOut} accessibilityLabel="Sign Out">
-        <MaterialIcons name="logout" size={24} color="white" />
+      <TouchableOpacity
+        onPress={signOut}
+        accessibilityLabel="Sign Out"
+        className="bg-[#72d3fc] rounded-full px-6 py-2"
+      >
+        <Text className="text-black font-semibold">Sign Out</Text>
       </TouchableOpacity>
 
       {/* User Profile Pic */}
-      <TouchableOpacity onPress={() => { /* Optional: navigate to profile page */ }}>
+      <TouchableOpacity onPress={() => {}}>
         <Image
           source={{
-            uri: user?.photo ?? 'https://i.pravatar.cc/300', // fallback avatar
+            uri: user?.photo ?? 'https://i.pravatar.cc/300',
           }}
           className="w-8 h-8 rounded-full"
         />
@@ -31,12 +35,16 @@ const TabsLayout = () => {
       screenOptions={{
         tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: 'black',
           borderTopWidth: 0,
           elevation: 0,
+          backgroundColor: '#1c2330',
         },
         headerStyle: {
-          backgroundColor: 'black',
+          backgroundColor: 'transparent',
+          shadowColor: 'transparent',
+          shadowOpacity: 0,
+          elevation: 0,
+          borderBottomWidth: 0,
         },
         headerTitle: '',
         headerRight: headerRightComponent,
@@ -48,14 +56,14 @@ const TabsLayout = () => {
           headerShown: true,
           tabBarIcon: ({ focused, color, size }) => (
             <View
-              className={`mt-2 pt-[4px] px-12 py-2 ${
+              className={`mt-2 pt-1 px-12 py-2 rounded-full ${
                 focused ? 'bg-[#72d3fc]' : 'bg-transparent'
-              } rounded-full`}
+              }`}
             >
               <MaterialIcons
                 name="tag"
                 size={size}
-                color={focused ? 'black' : color}
+                color={focused ? 'black' : '#aaa'}
               />
             </View>
           ),
@@ -67,14 +75,14 @@ const TabsLayout = () => {
           headerShown: true,
           tabBarIcon: ({ focused, color, size }) => (
             <View
-              className={`mt-2 pt-[4px] px-12 py-2 ${
+              className={`mt-2 pt-1 px-12 py-2 rounded-full ${
                 focused ? 'bg-[#00affa]' : 'bg-transparent'
-              } rounded-full`}
+              }`}
             >
               <MaterialIcons
                 name="leaderboard"
                 size={size}
-                color={focused ? 'black' : color}
+                color={focused ? 'black' : '#aaa'}
               />
             </View>
           ),
@@ -86,14 +94,14 @@ const TabsLayout = () => {
           headerShown: true,
           tabBarIcon: ({ focused, color, size }) => (
             <View
-              className={`mt-2 pt-[4px] px-12 py-2 ${
+              className={`mt-2 pt-1 px-12 py-2 rounded-full ${
                 focused ? 'bg-[#72d3fc]' : 'bg-transparent'
-              } rounded-full`}
+              }`}
             >
               <MaterialIcons
                 name="search"
                 size={size}
-                color={focused ? 'black' : color}
+                color={focused ? 'black' : '#aaa'}
               />
             </View>
           ),
