@@ -1,11 +1,12 @@
 import React, { useLayoutEffect, useState } from 'react';
 import { View, TextInput, TouchableOpacity, Image, Text, StyleSheet } from 'react-native';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { Ionicons } from '@expo/vector-icons';
 
 const FoundScreen = () => {
   const navigation = useNavigation();
+  const router = useRouter();
   const { signOut, user } = useAuth();
   const [searchText, setSearchText] = useState('');
 
@@ -40,15 +41,11 @@ const FoundScreen = () => {
   }, [navigation, signOut, user, searchText]);
 
   const handleUploadPress = () => {
-    // Handle the upload item button press here
-    alert('Upload item button pressed');
+    router.push('/fupload');
   };
 
   return (
     <View style={styles.container}>
-    
-      {/* Add any other content here */}
-
       <TouchableOpacity style={styles.uploadButton} onPress={handleUploadPress}>
         <Ionicons name="cloud-upload-outline" size={20} color="black" style={{ marginRight: 8 }} />
         <Text style={styles.uploadButtonText}>Upload an Item</Text>
@@ -64,7 +61,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "white",
     padding: 16,
-    justifyContent: 'flex-end',  // Pushes button to bottom
+    justifyContent: 'flex-end',
     alignItems: 'center',
   },
   headerRow: {
@@ -107,7 +104,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginLeft: 8,
   },
-
   uploadButton: {
     flexDirection: 'row',
     backgroundColor: '#72d3fc',
@@ -122,7 +118,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-    
   },
   uploadButtonText: {
     color: 'black',
