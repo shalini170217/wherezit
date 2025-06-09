@@ -1,31 +1,67 @@
-import React, { useState } from 'react';
-import { View, TextInput, Button, Alert, StyleSheet, Text } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  Alert,
+  TouchableOpacity,
+  Platform,
+  StyleSheet,
+} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Location from 'expo-location';
 import { databases, ID } from '../lib/appwrite';
 
 const DATABASE_ID = '68466603000fa3396bcc';
 const COLLECTION_ID = '6846660d0031b741c502';
 
 export default function UploadForm() {
-  // Form states
   const [description, setDescription] = useState('');
   const [fileId, setFileId] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
-  const [dateTime, setDateTime] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [time, setTime] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      setLatitude(location.coords.latitude.toString());
+      setLongitude(location.coords.longitude.toString());
+    })();
+  }, []);
+
+  const onChangeDate = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (event.type === 'dismissed') return;
+    if (selectedDate) setDate(selectedDate);
+  };
+
+  const onChangeTime = (event, selectedTime) => {
+    setShowTimePicker(false);
+    if (event.type === 'dismissed') return;
+    if (selectedTime) setTime(selectedTime);
+  };
 
   const handleSubmit = async () => {
-    // Basic validation
-    if (!description || !fileId || !latitude || !longitude || !dateTime) {
+    if (!description || !fileId || !latitude || !longitude) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
 
-    // Convert lat/long to numbers
-    const latNum = parseFloat(latitude);
-    const longNum = parseFloat(longitude);
-
-    if (isNaN(latNum) || isNaN(longNum)) {
-      Alert.alert('Error', 'Latitude and Longitude must be valid numbers');
+    const lat = parseFloat(latitude);
+    const long = parseFloat(longitude);
+    if (isNaN(lat) || isNaN(long)) {
+      Alert.alert('Error', 'Invalid coordinates');
       return;
     }
 
@@ -37,67 +73,78 @@ export default function UploadForm() {
         {
           description,
           fileId,
-          latitude: latNum,
-          longitude: longNum,
-          dateTime, // Appwrite expects ISO8601 datetime string - so user should input like "2025-06-09T10:00:00Z"
+          latitude: lat,
+          longitude: long,
+          date: date.toISOString().split('T')[0],       // "YYYY-MM-DD"
+          time: time.toTimeString().split(' ')[0],       // "HH:mm:ss"
         }
       );
       Alert.alert('Success', 'Document created with ID: ' + res.$id);
-      // Clear form
       setDescription('');
       setFileId('');
-      setLatitude('');
-      setLongitude('');
-      setDateTime('');
+      setDate(new Date());
+      setTime(new Date());
     } catch (error) {
-      console.error('Create doc error:', error);
+      console.error('Error creating document:', error);
       Alert.alert('Error', 'Failed to create document');
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text>Description:</Text>
+      <Text style={styles.label}>Description:</Text>
       <TextInput
         style={styles.input}
+        placeholder="Enter description"
         value={description}
         onChangeText={setDescription}
-        placeholder="Enter description"
       />
 
-      <Text>File ID:</Text>
+      <Text style={styles.label}>File ID:</Text>
       <TextInput
         style={styles.input}
+        placeholder="Enter file ID"
         value={fileId}
         onChangeText={setFileId}
-        placeholder="Enter file ID"
       />
 
-      <Text>Latitude:</Text>
-      <TextInput
-        style={styles.input}
-        value={latitude}
-        onChangeText={setLatitude}
-        placeholder="Enter latitude"
-        keyboardType="numeric"
-      />
+      <Text style={styles.label}>Latitude:</Text>
+      <TextInput style={styles.input} value={latitude} editable={false} />
 
-      <Text>Longitude:</Text>
-      <TextInput
-        style={styles.input}
-        value={longitude}
-        onChangeText={setLongitude}
-        placeholder="Enter longitude"
-        keyboardType="numeric"
-      />
+      <Text style={styles.label}>Longitude:</Text>
+      <TextInput style={styles.input} value={longitude} editable={false} />
 
-      <Text>Date & Time (ISO format):</Text>
-      <TextInput
+      <Text style={styles.label}>Date:</Text>
+      <TouchableOpacity
+        onPress={() => setShowDatePicker(true)}
         style={styles.input}
-        value={dateTime}
-        onChangeText={setDateTime}
-        placeholder="YYYY-MM-DDTHH:mm:ssZ"
-      />
+      >
+        <Text>{date.toISOString().split('T')[0]}</Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display="default"
+          onChange={onChangeDate}
+        />
+      )}
+
+      <Text style={styles.label}>Time:</Text>
+      <TouchableOpacity
+        onPress={() => setShowTimePicker(true)}
+        style={styles.input}
+      >
+        <Text>{time.toTimeString().split(' ')[0]}</Text>
+      </TouchableOpacity>
+      {showTimePicker && (
+        <DateTimePicker
+          value={time}
+          mode="time"
+          display="default"
+          onChange={onChangeTime}
+        />
+      )}
 
       <Button title="Submit" onPress={handleSubmit} />
     </View>
@@ -106,11 +153,12 @@ export default function UploadForm() {
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
+  label: { fontWeight: '600', marginBottom: 5 },
   input: {
     borderWidth: 1,
     borderColor: '#aaa',
+    padding: 10,
     marginBottom: 15,
-    padding: 8,
-    borderRadius: 4,
+    borderRadius: 5,
   },
 });
