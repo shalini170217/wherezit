@@ -6,15 +6,18 @@ import {
   Button,
   Alert,
   TouchableOpacity,
-  Platform,
   StyleSheet,
+  Image,
+  ActivityIndicator
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Location from 'expo-location';
-import { databases, ID } from '../lib/appwrite';
+import { databases, storage, ID } from '../lib/appwrite';
 
 const DATABASE_ID = '68466603000fa3396bcc';
 const COLLECTION_ID = '6846660d0031b741c502';
+const BUCKET_ID = '684666ed00167611657f';
 
 export default function UploadForm() {
   const [description, setDescription] = useState('');
@@ -25,6 +28,8 @@ export default function UploadForm() {
   const [time, setTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [imageUri, setImageUri] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -40,6 +45,46 @@ export default function UploadForm() {
     })();
   }, []);
 
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  const uploadImage = async () => {
+    if (!imageUri) {
+      Alert.alert('Error', 'Please select an image first');
+      return null;
+    }
+
+    setIsUploading(true);
+    try {
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      
+      const file = await storage.createFile(
+        BUCKET_ID,
+        ID.unique(),
+        blob
+      );
+      
+      return file.$id;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      Alert.alert('Error', 'Failed to upload image');
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const onChangeDate = (event, selectedDate) => {
     setShowDatePicker(false);
     if (event.type === 'dismissed') return;
@@ -53,10 +98,13 @@ export default function UploadForm() {
   };
 
   const handleSubmit = async () => {
-    if (!description || !fileId || !latitude || !longitude) {
+    if (!description || !imageUri) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
+
+    const uploadedFileId = await uploadImage();
+    if (!uploadedFileId) return;
 
     const lat = parseFloat(latitude);
     const long = parseFloat(longitude);
@@ -72,16 +120,16 @@ export default function UploadForm() {
         ID.unique(),
         {
           description,
-          fileId,
+          fileId: uploadedFileId,
           latitude: lat,
           longitude: long,
-          date: date.toISOString().split('T')[0],       // "YYYY-MM-DD"
-          time: time.toTimeString().split(' ')[0],       // "HH:mm:ss"
+          date: date.toISOString().split('T')[0],
+          time: time.toTimeString().split(' ')[0],
         }
       );
       Alert.alert('Success', 'Document created with ID: ' + res.$id);
       setDescription('');
-      setFileId('');
+      setImageUri(null);
       setDate(new Date());
       setTime(new Date());
     } catch (error) {
@@ -100,13 +148,14 @@ export default function UploadForm() {
         onChangeText={setDescription}
       />
 
-      <Text style={styles.label}>File ID:</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter file ID"
-        value={fileId}
-        onChangeText={setFileId}
-      />
+      <Text style={styles.label}>Image:</Text>
+      <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.image} />
+        ) : (
+          <Text style={styles.imagePlaceholder}>Tap to select an image</Text>
+        )}
+      </TouchableOpacity>
 
       <Text style={styles.label}>Latitude:</Text>
       <TextInput style={styles.input} value={latitude} editable={false} />
@@ -146,7 +195,13 @@ export default function UploadForm() {
         />
       )}
 
-      <Button title="Submit" onPress={handleSubmit} />
+      <Button
+        title={isUploading ? "Uploading..." : "Submit"}
+        onPress={handleSubmit}
+        disabled={isUploading}
+      />
+      
+      {isUploading && <ActivityIndicator style={styles.loader} size="large" />}
     </View>
   );
 }
@@ -160,5 +215,26 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 15,
     borderRadius: 5,
+  },
+  imagePicker: {
+    borderWidth: 1,
+    borderColor: '#aaa',
+    borderRadius: 5,
+    height: 200,
+    marginBottom: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  imagePlaceholder: {
+    color: '#888',
+  },
+  loader: {
+    marginTop: 20,
   },
 });
