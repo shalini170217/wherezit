@@ -31,7 +31,8 @@ const FoundScreen = () => {
 
           <TouchableOpacity>
             <Image
-              source={{ uri: user?.photo ?? 'https://i.pravatar.cc/300' }}
+             source={require('../../assets/images/blue.png')}
+
               style={styles.avatar}
             />
           </TouchableOpacity>

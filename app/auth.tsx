@@ -17,7 +17,7 @@ import {
   Snackbar,
 } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
-import { LinearGradient } from "expo-linear-gradient"; // <-- import this
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -35,13 +35,11 @@ export default function AuthScreen() {
     useCallback(() => {
       const onBackPress = () => {
         router.replace("/(tabs)/found");
-        return true;
+        return true; // Prevent default back action
       };
 
-      BackHandler.addEventListener("hardwareBackPress", onBackPress);
-      return () => {
-        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
-      };
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => subscription.remove();
     }, [])
   );
 
@@ -105,7 +103,7 @@ export default function AuthScreen() {
         />
         {/* Gradient fades from transparent at bottom to bg color at top */}
         <LinearGradient
-          colors={["rgba(3,0,20,0)", "#030014"]} 
+          colors={["rgba(3,0,20,0)", "#030014"]}
           style={styles.gradientOverlay}
           start={{ x: 0, y: 1 }}
           end={{ x: 0, y: 0 }}
@@ -274,4 +272,3 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
 });
-
