@@ -17,9 +17,9 @@ import { databases, storage, ID } from '../lib/appwrite';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-const DATABASE_ID = '68466603000fa3396bcc';
-const COLLECTION_ID = '6846660d0031b741c502';
-const BUCKET_ID = '684666ed00167611657f';
+const DATABASE_ID = '68478188000863f4f39f';
+const COLLECTION_ID = '6847818f00228538908c';
+const BUCKET_ID = '684782760015fa4dfa11';
 
 export default function UploadForm() {
   const router = useRouter();

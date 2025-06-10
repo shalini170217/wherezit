@@ -16,10 +16,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { databases, storage } from '@/lib/appwrite';
 
 const screenWidth = Dimensions.get('window').width;
+const CARD_MARGIN = 8;
+const CARD_WIDTH = (screenWidth - CARD_MARGIN * 3) / 2;
 
-const DATABASE_ID = '68466603000fa3396bcc';
-const COLLECTION_ID = '6846660d0031b741c502';
-const BUCKET_ID = '684666ed00167611657f';
+const DATABASE_ID = '68478188000863f4f39f';
+const COLLECTION_ID = '6847818f00228538908c';
+const BUCKET_ID = '684782760015fa4dfa11';
 
 const FoundScreen = () => {
   const navigation = useNavigation();
@@ -29,14 +31,14 @@ const FoundScreen = () => {
   const [searchText, setSearchText] = useState('');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [imageUrls, setImageUrls] = useState({}); // To store authenticated URLs
+  const [imageUrls, setImageUrls] = useState({});
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: () => (
         <View style={styles.headerRow}>
           <TextInput
-            placeholder="Search..."
+            placeholder="Search by description..."
             value={searchText}
             onChangeText={setSearchText}
             placeholderTextColor="#999"
@@ -49,7 +51,6 @@ const FoundScreen = () => {
           <TouchableOpacity onPress={signOut} style={styles.signOutBtn}>
             <Text style={styles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
-
           <TouchableOpacity>
             <Image
               source={require('../../assets/images/blue.png')}
@@ -66,6 +67,7 @@ const FoundScreen = () => {
       setLoading(true);
       try {
         const response = await databases.listDocuments(DATABASE_ID, COLLECTION_ID);
+        console.log('Fetched items:', response.documents);
         setItems(response.documents);
       } catch (error) {
         console.error('Error fetching items:', error);
@@ -76,18 +78,26 @@ const FoundScreen = () => {
     fetchItems();
   }, []);
 
-  // Fetch authenticated file view URLs for each item with fileId
   useEffect(() => {
     const fetchImageUrls = async () => {
       const urls = {};
       for (const item of items) {
         if (item.fileId) {
           try {
-            // This uses the SDK to get the file view URL (auth required)
-            const url = await storage.getFilePreview(BUCKET_ID, item.fileId, 300, 300);
-            urls[item.$id] = url;
+            // First try to get file view
+            const fileView = storage.getFileView(BUCKET_ID, item.fileId);
+            urls[item.$id] = fileView.toString();
+            
+            console.log('Generated URL for', item.fileId, ':', urls[item.$id]);
+            
+            // Verify URL works
+            const response = await fetch(urls[item.$id]);
+            if (!response.ok) {
+              console.warn('URL not accessible:', urls[item.$id]);
+              delete urls[item.$id];
+            }
           } catch (error) {
-            console.error('Error getting file preview URL:', error);
+            console.error('Error generating URL for file', item.fileId, ':', error);
           }
         }
       }
@@ -95,13 +105,8 @@ const FoundScreen = () => {
     };
 
     if (items.length > 0) {
+      console.log('Fetching image URLs for', items.length, 'items');
       fetchImageUrls();
-
-      // Debug log a sample URL
-      console.log(
-        'Sample image preview URL:',
-        `${storage.endpoint}/storage/buckets/${BUCKET_ID}/files/${items[0].fileId}/preview?project=${storage.project}&width=300`
-      );
     }
   }, [items]);
 
@@ -110,30 +115,33 @@ const FoundScreen = () => {
   };
 
   const renderCard = ({ item }) => {
-    // Try to get URL from authenticated URLs fetched above
-    let imageUrl = imageUrls[item.$id] ?? null;
-
-    // Fallback: construct public preview URL manually (works only if public read access is set)
-    if (!imageUrl && item.fileId) {
-      imageUrl = `${storage.endpoint}/storage/buckets/${BUCKET_ID}/files/${item.fileId}/preview?project=${storage.project}&width=300`;
-    }
+    const imageUrl = imageUrls[item.$id];
+    console.log('Rendering card for', item.$id, 'with image:', imageUrl);
 
     return (
       <View style={styles.card}>
         {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.cardImage}
+          <Image 
+            source={{ uri: imageUrl }} 
+            style={styles.cardImage} 
             resizeMode="cover"
+            onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
           />
         ) : (
           <View style={[styles.cardImage, styles.noImage]}>
             <Text style={{ color: '#888' }}>No Image</Text>
           </View>
         )}
-        <Text style={styles.cardDescription}>
-          {item.description ?? 'No description'}
-        </Text>
+
+        <View style={styles.cardContent}>
+          <Text style={styles.cardDescription} numberOfLines={2}>
+            {item.description || 'No description'}
+          </Text>
+          <Text style={styles.cardDetail}>📅 {item.date?.slice(0, 10)}</Text>
+          <Text style={styles.cardDetail}>⏰ {item.time}</Text>
+          <Text style={styles.cardDetail}>📍 Lat: {item.latitude}</Text>
+          <Text style={styles.cardDetail}>📍 Long: {item.longitude}</Text>
+        </View>
       </View>
     );
   };
@@ -152,17 +160,13 @@ const FoundScreen = () => {
             data={filteredItems}
             renderItem={renderCard}
             keyExtractor={(item) => item.$id}
-            numColumns={2}
-            columnWrapperStyle={styles.row}
             contentContainerStyle={{ paddingBottom: 100 }}
+            numColumns={2}
+            columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 12 }}
           />
+
           <TouchableOpacity style={styles.uploadButton} onPress={handleUploadPress}>
-            <Ionicons
-              name="cloud-upload-outline"
-              size={20}
-              color="black"
-              style={{ marginRight: 8 }}
-            />
+            <Ionicons name="cloud-upload-outline" size={20} color="black" style={{ marginRight: 8 }} />
             <Text style={styles.uploadButtonText}>Upload an Item</Text>
           </TouchableOpacity>
         </>
@@ -176,19 +180,17 @@ export default FoundScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
-    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
     paddingTop: 8,
   },
   headerRow: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     marginRight: 10,
   },
   searchBar: {
     flex: 1,
-    width: 300,
     backgroundColor: '#fff',
     borderRadius: 10,
     paddingHorizontal: 12,
@@ -228,31 +230,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 30,
-    alignSelf: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
     position: 'absolute',
     bottom: 20,
+    alignSelf: 'center',
+    elevation: 5,
   },
   uploadButtonText: {
     color: 'black',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  row: {
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
   card: {
+    width: CARD_WIDTH,
     backgroundColor: '#f9f9f9',
     borderRadius: 10,
-    width: (screenWidth - 48) / 2,
-    padding: 10,
-    alignItems: 'center',
+    overflow: 'hidden',
     shadowColor: '#aaa',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -261,19 +253,26 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: '100%',
-    height: 120,
-    borderRadius: 10,
-    marginBottom: 8,
-    backgroundColor: '#f0f0f0', // helps verify visibility
+    height: 220,
+    backgroundColor: '#f0f0f0',
   },
   noImage: {
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#ddd',
   },
+  cardContent: {
+    padding: 8,
+  },
   cardDescription: {
     fontSize: 14,
+    fontWeight: 'bold',
     color: '#333',
-    textAlign: 'center',
+    marginBottom: 4,
+  },
+  cardDetail: {
+    fontSize: 12,
+    color: '#555',
+    marginBottom: 2,
   },
 });
