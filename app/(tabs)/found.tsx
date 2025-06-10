@@ -51,7 +51,7 @@ const FoundScreen = () => {
           <TouchableOpacity onPress={signOut} style={styles.signOutBtn}>
             <Text style={styles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/profile')}>
             <Image
               source={require('../../assets/images/blue.png')}
               style={styles.avatar}
@@ -67,7 +67,6 @@ const FoundScreen = () => {
       setLoading(true);
       try {
         const response = await databases.listDocuments(DATABASE_ID, COLLECTION_ID);
-        console.log('Fetched items:', response.documents);
         setItems(response.documents);
       } catch (error) {
         console.error('Error fetching items:', error);
@@ -84,16 +83,11 @@ const FoundScreen = () => {
       for (const item of items) {
         if (item.fileId) {
           try {
-            // First try to get file view
             const fileView = storage.getFileView(BUCKET_ID, item.fileId);
             urls[item.$id] = fileView.toString();
-            
-            console.log('Generated URL for', item.fileId, ':', urls[item.$id]);
-            
-            // Verify URL works
+
             const response = await fetch(urls[item.$id]);
             if (!response.ok) {
-              console.warn('URL not accessible:', urls[item.$id]);
               delete urls[item.$id];
             }
           } catch (error) {
@@ -105,7 +99,6 @@ const FoundScreen = () => {
     };
 
     if (items.length > 0) {
-      console.log('Fetching image URLs for', items.length, 'items');
       fetchImageUrls();
     }
   }, [items]);
@@ -116,23 +109,20 @@ const FoundScreen = () => {
 
   const renderCard = ({ item }) => {
     const imageUrl = imageUrls[item.$id];
-    console.log('Rendering card for', item.$id, 'with image:', imageUrl);
 
     return (
       <View style={styles.card}>
         {imageUrl ? (
-          <Image 
-            source={{ uri: imageUrl }} 
-            style={styles.cardImage} 
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.cardImage}
             resizeMode="cover"
-            onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
           />
         ) : (
           <View style={[styles.cardImage, styles.noImage]}>
             <Text style={{ color: '#888' }}>No Image</Text>
           </View>
         )}
-
         <View style={styles.cardContent}>
           <Text style={styles.cardDescription} numberOfLines={2}>
             {item.description || 'No description'}
@@ -199,7 +189,7 @@ const styles = StyleSheet.create({
     color: 'black',
     borderWidth: 2,
     borderColor: 'black',
-    width:340,
+    width: 340,
   },
   headerRight: {
     flexDirection: 'row',
@@ -242,41 +232,38 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   card: {
-     width: CARD_WIDTH,
+    width: CARD_WIDTH,
     backgroundColor: '#f5f5f5',
     borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 16, // space between rows
-    marginHorizontal: CARD_MARGIN / 2, // space between cards in same row
-    shadowColor: '#c8c9cc', // bluish shadow color
+    marginBottom: 16,
+    marginHorizontal: CARD_MARGIN / 2,
+    shadowColor: '#c8c9cc',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 6,
   },
   cardImage: {
-       width: '100%',
+    width: '100%',
     height: 180,
-
   },
   noImage: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#e0eaff', 
+    backgroundColor: '#e0eaff',
   },
   cardContent: {
     padding: 10,
-    gap:4,
+    gap: 4,
   },
   cardDescription: {
     fontSize: 14,
     fontWeight: '600',
     color: '#222',
-    
   },
   cardDetail: {
     fontSize: 12,
     color: '#666',
-    
   },
 });

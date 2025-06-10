@@ -57,7 +57,7 @@ const TabsLayout = () => {
           tabBarIcon: ({ focused, color, size }) => (
             <View
               className={`mt-2 pt-1 px-12 py-2 rounded-full ${
-                focused ? 'bg-[#72d3fc]' : 'bg-transparent'
+                focused ? 'bg-[#00affa]' : 'bg-transparent'
               }`}
             >
               <MaterialIcons
@@ -95,7 +95,7 @@ const TabsLayout = () => {
           tabBarIcon: ({ focused, color, size }) => (
             <View
               className={`mt-2 pt-1 px-12 py-2 rounded-full ${
-                focused ? 'bg-[#72d3fc]' : 'bg-transparent'
+                focused ? 'bg-[#00affa]' : 'bg-transparent'
               }`}
             >
               <MaterialIcons
