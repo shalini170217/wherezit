@@ -56,7 +56,7 @@ const FoundScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/profile')}>
             <Image
-              source={require('../../assets/images/blue.png')}
+              source={require('../../assets/images/blue1.png')}
               style={styles.avatar}
             />
           </TouchableOpacity>
@@ -156,8 +156,8 @@ const FoundScreen = () => {
   const renderCard = ({ item }) => {
     const imageUrl = imageUrls[item.$id];
     const userProfile = profiles[item.userId] || {
-      name: 'Loading...',
-      email: 'Loading...',
+      name: 'Anonymous',
+      email: 'No email',
       avatar: null,
     };
 
