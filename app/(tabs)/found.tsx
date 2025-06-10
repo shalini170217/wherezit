@@ -13,15 +13,16 @@ import {
 import { useNavigation, useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { Ionicons } from '@expo/vector-icons';
-import { databases, storage } from '@/lib/appwrite';
+import { databases, storage, Query } from '@/lib/appwrite';
 
 const screenWidth = Dimensions.get('window').width;
 const CARD_MARGIN = 12;
 const CARD_WIDTH = (screenWidth - CARD_MARGIN * 4) / 2;
 
 const DATABASE_ID = '68478188000863f4f39f';
-const COLLECTION_ID = '6847818f00228538908c';
+const COLLECTION_ID = '6847818f00228538908c'; // Found Items
 const BUCKET_ID = '684782760015fa4dfa11';
+const PROFILE_COLLECTION_ID = '6847c4830011d384a4d9'; // Profile Collection
 
 const FoundScreen = () => {
   const navigation = useNavigation();
@@ -32,6 +33,7 @@ const FoundScreen = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [imageUrls, setImageUrls] = useState({});
+  const [profiles, setProfiles] = useState({}); // userId -> {name, email}
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -103,12 +105,45 @@ const FoundScreen = () => {
     }
   }, [items]);
 
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const profileMap = {};
+      const uniqueUserIds = [...new Set(items.map((item) => item.userId).filter(Boolean))];
+
+      for (const userId of uniqueUserIds) {
+        try {
+          const response = await databases.listDocuments(
+            DATABASE_ID,
+            PROFILE_COLLECTION_ID,
+            [Query.equal('userId', userId)]
+          );
+          if (response.documents.length > 0) {
+            const profile = response.documents[0];
+            profileMap[userId] = {
+              name: profile.name || 'Unknown',
+              email: profile.email || 'Unknown',
+            };
+          }
+        } catch (error) {
+          console.error(`Error fetching profile for userId ${userId}:`, error);
+        }
+      }
+
+      setProfiles(profileMap);
+    };
+
+    if (items.length > 0) {
+      fetchProfiles();
+    }
+  }, [items]);
+
   const handleUploadPress = () => {
     router.push('/fupload');
   };
 
   const renderCard = ({ item }) => {
     const imageUrl = imageUrls[item.$id];
+    const userProfile = item.userId ? profiles[item.userId] : null;
 
     return (
       <View style={styles.card}>
@@ -131,12 +166,18 @@ const FoundScreen = () => {
           <Text style={styles.cardDetail}>⏰ {item.time}</Text>
           <Text style={styles.cardDetail}>📍 Lat: {item.latitude}</Text>
           <Text style={styles.cardDetail}>📍 Long: {item.longitude}</Text>
+          <Text style={styles.cardDetail}>
+            👤 {userProfile ? userProfile.name : 'Unknown'}
+          </Text>
+          <Text style={styles.cardDetail}>
+            📧 {userProfile ? userProfile.email : 'Unknown'}
+          </Text>
         </View>
       </View>
     );
   };
 
-  const filteredItems = items.filter(item =>
+  const filteredItems = items.filter((item) =>
     (item.description ?? '').toLowerCase().includes(searchText.toLowerCase())
   );
 

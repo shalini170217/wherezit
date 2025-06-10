@@ -72,7 +72,7 @@ export default function AuthScreen() {
           return;
         }
         showSnackbar("Account created successfully!");
-        router.replace("/(tabs)/found");
+        router.replace("/profile");
       } else {
         const error = await signIn(email, password);
         if (error) {
