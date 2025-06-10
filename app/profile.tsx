@@ -13,12 +13,14 @@ import {
 } from 'react-native';
 import { databases, ID } from '@/lib/appwrite';
 import { useAuth } from '@/lib/auth-context';
+import { useRouter } from 'expo-router';
 
 const DATABASE_ID = '68478188000863f4f39f';
 const COLLECTION_ID = '6847c4830011d384a4d9';
 
 const ProfilePage = () => {
   const { user } = useAuth();
+  const router = useRouter();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -73,69 +75,68 @@ const ProfilePage = () => {
   };
 
   const handleSave = async () => {
-    // Validate all fields
-    const isValid = Object.keys(formData).every(key => 
-      validateField(key, formData[key])
+  // Validate all fields before submitting
+  const isValid = Object.keys(formData).every(key => validateField(key, formData[key]));
+
+  if (!isValid) {
+    Alert.alert('Validation Error', 'Please fix all errors before submitting');
+    return;
+  }
+
+  if (!user?.$id) {
+    Alert.alert('Error', 'Authentication required. Please login again.');
+    return;
+  }
+
+  setUploading(true);
+
+  try {
+    const newDocument = {
+      name: formData.name,
+      department: formData.department,
+      email: formData.email,
+      yearOfStudy: parseInt(formData.yearOfStudy, 10),
+    };
+
+    const response = await databases.createDocument(
+      DATABASE_ID,
+      COLLECTION_ID,
+      ID.unique(),
+      newDocument
     );
 
-    if (!isValid) {
-      Alert.alert('Validation Error', 'Please fix all errors before submitting');
-      return;
+    Alert.alert('Success', 'Profile saved successfully!');
+
+    // Reset form
+    setFormData({
+      name: '',
+      department: '',
+      email: '',
+      yearOfStudy: '',
+    });
+
+    // ✅ Navigate AFTER alert
+    router.replace('/(tabs)/found');
+
+  } catch (error) {
+    console.error('Full error details:', {
+      message: error.message,
+      code: error.code,
+      type: error.type,
+      response: error.response,
+    });
+
+    let errorMessage = error.message;
+    if (error.response?.message?.includes('required')) {
+      errorMessage = 'Missing required fields. Check your collection attributes.';
     }
 
-    if (!user?.$id) {
-      Alert.alert('Error', 'Authentication required. Please login again.');
-      return;
-    }
+    Alert.alert('Save Failed', errorMessage);
+  } finally {
+    setUploading(false);
+  }
+};
 
-    setUploading(true);
-
-    try {
-      // Document strictly matches your schema
-      const newDocument = {
-        name: formData.name,
-        department: formData.department,
-        email: formData.email,
-        yearOfStudy: parseInt(formData.yearOfStudy, 10) // Convert to integer
-      };
-
-      console.log('Creating document:', newDocument); // Debug log
-
-      const response = await databases.createDocument(
-        DATABASE_ID,
-        COLLECTION_ID,
-        ID.unique(),
-        newDocument
-      );
-
-      console.log('Document created:', response); // Debug log
-      
-      Alert.alert('Success', 'Profile saved successfully!');
-      setFormData({
-        name: '',
-        department: '',
-        email: '',
-        yearOfStudy: ''
-      });
-
-    } catch (error) {
-      console.error('Full error details:', {
-        message: error.message,
-        code: error.code,
-        type: error.type,
-        response: error.response
-      });
-
-      let errorMessage = error.message;
-      if (error.response?.message.includes('required')) {
-        errorMessage = 'Missing required fields. Check your collection attributes.';
-      }
-
-      Alert.alert('Save Failed', errorMessage);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   return (
     <KeyboardAvoidingView
@@ -225,7 +226,7 @@ const ProfilePage = () => {
             {uploading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.saveButtonText}>Save Profile</Text>
+              <Text style={styles.saveButtonText} >Save Profile</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -234,7 +235,6 @@ const ProfilePage = () => {
   );
 };
 
-// Styles remain the same as in your original code
 const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1,
