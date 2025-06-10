@@ -13,8 +13,8 @@ import {
 import { useNavigation, useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { Ionicons } from '@expo/vector-icons';
-import { databases, storage, Query } from '@/lib/appwrite';
-
+import { databases, storage } from '@/lib/appwrite';
+import { Query } from 'react-native-appwrite';
 const screenWidth = Dimensions.get('window').width;
 const CARD_MARGIN = 12;
 const CARD_WIDTH = (screenWidth - CARD_MARGIN * 4) / 2;
@@ -33,7 +33,8 @@ const FoundScreen = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [imageUrls, setImageUrls] = useState({});
-  const [profiles, setProfiles] = useState({}); // userId -> {name, email}
+  const [profiles, setProfiles] = useState({});
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -65,77 +66,88 @@ const FoundScreen = () => {
   }, [navigation, signOut, user, searchText]);
 
   useEffect(() => {
-    const fetchItems = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await databases.listDocuments(DATABASE_ID, COLLECTION_ID);
-        setItems(response.documents);
-      } catch (error) {
-        console.error('Error fetching items:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchItems();
-  }, []);
+        // Fetch items
+        const itemsResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_ID);
+        const fetchedItems = itemsResponse.documents;
+        setItems(fetchedItems);
+        console.log('Fetched items:', fetchedItems);
 
-  useEffect(() => {
-    const fetchImageUrls = async () => {
-      const urls = {};
-      for (const item of items) {
-        if (item.fileId) {
+        // Fetch images
+        const urls = {};
+        for (const item of fetchedItems) {
+          if (item.fileId) {
+            try {
+              const fileView = storage.getFileView(BUCKET_ID, item.fileId);
+              urls[item.$id] = fileView.toString();
+
+              // Verify the URL works
+              const response = await fetch(urls[item.$id]);
+              if (!response.ok) {
+                console.warn(`Image not found for fileId: ${item.fileId}`);
+                delete urls[item.$id];
+              }
+            } catch (error) {
+              console.error('Error generating URL for file', item.fileId, ':', error);
+            }
+          }
+        }
+        setImageUrls(urls);
+
+        // Fetch profiles for all unique user IDs
+        setProfileLoading(true);
+        const profileMap = {};
+        const uniqueUserIds = [...new Set(fetchedItems.map((item) => item.userId).filter(Boolean))];
+        console.log('Unique user IDs to fetch profiles for:', uniqueUserIds);
+
+        for (const userId of uniqueUserIds) {
           try {
-            const fileView = storage.getFileView(BUCKET_ID, item.fileId);
-            urls[item.$id] = fileView.toString();
+            const profileResponse = await databases.listDocuments(
+              DATABASE_ID,
+              PROFILE_COLLECTION_ID,
+              [Query.equal('userId', userId)]
+            );
 
-            const response = await fetch(urls[item.$id]);
-            if (!response.ok) {
-              delete urls[item.$id];
+            console.log(`Profile response for ${userId}:`, profileResponse);
+
+            if (profileResponse.documents.length > 0) {
+              const profile = profileResponse.documents[0];
+              profileMap[userId] = {
+                name: profile.name || 'Anonymous',
+                email: profile.email || 'No email',
+                avatar: profile.avatar || null,
+              };
+            } else {
+              console.warn(`No profile found for userId: ${userId}`);
+              profileMap[userId] = {
+                name: 'Anonymous',
+                email: 'No email',
+                avatar: null,
+              };
             }
           } catch (error) {
-            console.error('Error generating URL for file', item.fileId, ':', error);
-          }
-        }
-      }
-      setImageUrls(urls);
-    };
-
-    if (items.length > 0) {
-      fetchImageUrls();
-    }
-  }, [items]);
-
-  useEffect(() => {
-    const fetchProfiles = async () => {
-      const profileMap = {};
-      const uniqueUserIds = [...new Set(items.map((item) => item.userId).filter(Boolean))];
-
-      for (const userId of uniqueUserIds) {
-        try {
-          const response = await databases.listDocuments(
-            DATABASE_ID,
-            PROFILE_COLLECTION_ID,
-            [Query.equal('userId', userId)]
-          );
-          if (response.documents.length > 0) {
-            const profile = response.documents[0];
+            console.error(`Error fetching profile for userId ${userId}:`, error);
             profileMap[userId] = {
-              name: profile.name || 'Unknown',
-              email: profile.email || 'Unknown',
+              name: 'Error loading',
+              email: 'Error loading',
+              avatar: null,
             };
           }
-        } catch (error) {
-          console.error(`Error fetching profile for userId ${userId}:`, error);
         }
+        setProfiles(profileMap);
+        console.log('Profile map:', profileMap);
+      } catch (error) {
+        console.error('Error in fetchData:', error);
+      } finally {
+        setLoading(false);
+        setProfileLoading(false);
       }
-
-      setProfiles(profileMap);
     };
 
-    if (items.length > 0) {
-      fetchProfiles();
-    }
-  }, [items]);
+    fetchData();
+  }, []);
 
   const handleUploadPress = () => {
     router.push('/fupload');
@@ -143,7 +155,11 @@ const FoundScreen = () => {
 
   const renderCard = ({ item }) => {
     const imageUrl = imageUrls[item.$id];
-    const userProfile = item.userId ? profiles[item.userId] : null;
+    const userProfile = profiles[item.userId] || {
+      name: 'Loading...',
+      email: 'Loading...',
+      avatar: null,
+    };
 
     return (
       <View style={styles.card}>
@@ -166,12 +182,23 @@ const FoundScreen = () => {
           <Text style={styles.cardDetail}>⏰ {item.time}</Text>
           <Text style={styles.cardDetail}>📍 Lat: {item.latitude}</Text>
           <Text style={styles.cardDetail}>📍 Long: {item.longitude}</Text>
-          <Text style={styles.cardDetail}>
-            👤 {userProfile ? userProfile.name : 'Unknown'}
-          </Text>
-          <Text style={styles.cardDetail}>
-            📧 {userProfile ? userProfile.email : 'Unknown'}
-          </Text>
+          
+          <View style={styles.userInfoContainer}>
+            {userProfile.avatar ? (
+              <Image
+                source={{ uri: userProfile.avatar }}
+                style={styles.userAvatar}
+              />
+            ) : (
+              <View style={[styles.userAvatar, styles.defaultAvatar]}>
+                <Ionicons name="person" size={16} color="#fff" />
+              </View>
+            )}
+            <View style={styles.userTextInfo}>
+              <Text style={styles.userName}>{userProfile.name}</Text>
+              <Text style={styles.userEmail}>{userProfile.email}</Text>
+            </View>
+          </View>
         </View>
       </View>
     );
@@ -181,27 +208,35 @@ const FoundScreen = () => {
     (item.description ?? '').toLowerCase().includes(searchText.toLowerCase())
   );
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#72d3fc" />
+        <Text style={styles.loadingText}>Loading items...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {loading ? (
-        <ActivityIndicator size="large" style={{ marginTop: 20 }} />
-      ) : (
-        <>
-          <FlatList
-            data={filteredItems}
-            renderItem={renderCard}
-            keyExtractor={(item) => item.$id}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            numColumns={2}
-            columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 16 }}
-          />
+      <FlatList
+        data={filteredItems}
+        renderItem={renderCard}
+        keyExtractor={(item) => item.$id}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        numColumns={2}
+        columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 16 }}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No items found</Text>
+          </View>
+        }
+      />
 
-          <TouchableOpacity style={styles.uploadButton} onPress={handleUploadPress}>
-            <Ionicons name="cloud-upload-outline" size={20} color="black" style={{ marginRight: 8 }} />
-            <Text style={styles.uploadButtonText}>Upload an Item</Text>
-          </TouchableOpacity>
-        </>
-      )}
+      <TouchableOpacity style={styles.uploadButton} onPress={handleUploadPress}>
+        <Ionicons name="cloud-upload-outline" size={20} color="black" style={{ marginRight: 8 }} />
+        <Text style={styles.uploadButtonText}>Upload an Item</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -254,6 +289,26 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginLeft: 8,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#26314a',
+  },
+  loadingText: {
+    color: '#fff',
+    marginTop: 10,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 50,
+  },
+  emptyText: {
+    color: '#fff',
+    fontSize: 16,
+  },
   uploadButton: {
     flexDirection: 'row',
     backgroundColor: '#72d3fc',
@@ -305,6 +360,34 @@ const styles = StyleSheet.create({
   },
   cardDetail: {
     fontSize: 12,
+    color: '#666',
+  },
+  userInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  userAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  defaultAvatar: {
+    backgroundColor: '#72d3fc',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userTextInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+  },
+  userEmail: {
+    fontSize: 10,
     color: '#666',
   },
 });
