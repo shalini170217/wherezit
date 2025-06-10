@@ -16,6 +16,7 @@ import * as Location from 'expo-location';
 import { databases, storage, ID } from '../lib/appwrite';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../lib/auth-context'; // ✅ Import your auth context here
 
 const DATABASE_ID = '68478188000863f4f39f';
 const COLLECTION_ID = '6847818f00228538908c';
@@ -23,6 +24,7 @@ const BUCKET_ID = '684782760015fa4dfa11';
 
 export default function UploadForm() {
   const router = useRouter();
+  const { user } = useAuth(); // ✅ Get the logged-in user
 
   const [description, setDescription] = useState('');
   const [latitude, setLatitude] = useState('');
@@ -100,6 +102,11 @@ export default function UploadForm() {
       return;
     }
 
+    if (!user || !user.$id) {
+      Alert.alert('Authentication Error', 'Please login again');
+      return;
+    }
+
     const uploadedFileId = await uploadImage();
     if (!uploadedFileId) return;
 
@@ -122,6 +129,7 @@ export default function UploadForm() {
           longitude: long,
           date: date.toISOString().split('T')[0],
           time: time.toTimeString().split(' ')[0],
+          userId: user.$id, // ✅ Include the user ID here
         }
       );
 
@@ -130,8 +138,7 @@ export default function UploadForm() {
       setImageUri(null);
       setDate(new Date());
       setTime(new Date());
-      
-      // Navigate back to found items tab
+
       router.replace('/(tabs)/found');
       
     } catch (error) {
