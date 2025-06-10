@@ -16,8 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { databases, storage } from '@/lib/appwrite';
 
 const screenWidth = Dimensions.get('window').width;
-const CARD_MARGIN = 8;
-const CARD_WIDTH = (screenWidth - CARD_MARGIN * 3) / 2;
+const CARD_MARGIN = 12;
+const CARD_WIDTH = (screenWidth - CARD_MARGIN * 4) / 2;
 
 const DATABASE_ID = '68478188000863f4f39f';
 const COLLECTION_ID = '6847818f00228538908c';
@@ -162,7 +162,7 @@ const FoundScreen = () => {
             keyExtractor={(item) => item.$id}
             contentContainerStyle={{ paddingBottom: 100 }}
             numColumns={2}
-            columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 12 }}
+            columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 16 }}
           />
 
           <TouchableOpacity style={styles.uploadButton} onPress={handleUploadPress}>
@@ -180,7 +180,7 @@ export default FoundScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#26314a',
     paddingHorizontal: 12,
     paddingTop: 8,
   },
@@ -199,6 +199,7 @@ const styles = StyleSheet.create({
     color: 'black',
     borderWidth: 2,
     borderColor: 'black',
+    width:340,
   },
   headerRight: {
     flexDirection: 'row',
@@ -241,38 +242,41 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   card: {
-    width: CARD_WIDTH,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
+     width: CARD_WIDTH,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#aaa',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
+    marginBottom: 16, // space between rows
+    marginHorizontal: CARD_MARGIN / 2, // space between cards in same row
+    shadowColor: '#c8c9cc', // bluish shadow color
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
   },
   cardImage: {
-    width: '100%',
-    height: 220,
-    backgroundColor: '#f0f0f0',
+       width: '100%',
+    height: 180,
+
   },
   noImage: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ddd',
+    backgroundColor: '#e0eaff', 
   },
   cardContent: {
-    padding: 8,
+    padding: 10,
+    gap:4,
   },
   cardDescription: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
+    fontWeight: '600',
+    color: '#222',
+    
   },
   cardDetail: {
     fontSize: 12,
-    color: '#555',
-    marginBottom: 2,
+    color: '#666',
+    
   },
 });
