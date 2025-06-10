@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,10 @@ import {
   Alert,
   ScrollView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
 } from 'react-native';
 import { databases, ID } from '@/lib/appwrite';
+import { Query } from 'react-native-appwrite';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'expo-router';
 
@@ -22,25 +23,45 @@ const ProfilePage = () => {
   const { user } = useAuth();
   const router = useRouter();
 
+  const [profileId, setProfileId] = useState(null); // For storing existing document ID
   const [formData, setFormData] = useState({
     name: '',
     department: '',
     email: '',
-    yearOfStudy: ''
+    yearOfStudy: '',
   });
-
-  const [errors, setErrors] = useState({
-    name: '',
-    department: '',
-    email: '',
-    yearOfStudy: ''
-  });
-
+  const [errors, setErrors] = useState({});
   const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (user?.$id) {
+      fetchProfile(user.$id);
+    }
+  }, [user]);
+
+  const fetchProfile = async (userId) => {
+    try {
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTION_ID, [
+        Query.equal('userId', userId),
+      ]);
+      if (response.total > 0) {
+        const doc = response.documents[0];
+        setProfileId(doc.$id);
+        setFormData({
+          name: doc.name || '',
+          department: doc.department || '',
+          email: doc.email || '',
+          yearOfStudy: doc.yearOfStudy?.toString() || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      Alert.alert('Error', 'Failed to fetch profile');
+    }
+  };
 
   const validateField = (name, value) => {
     let error = '';
-    
     switch (name) {
       case 'name':
         if (!value.trim()) error = 'Name is required';
@@ -60,83 +81,65 @@ const ProfilePage = () => {
       default:
         break;
     }
-    
-    setErrors(prev => ({ ...prev, [name]: error }));
+    setErrors((prev) => ({ ...prev, [name]: error }));
     return !error;
   };
 
   const handleChange = (name, value) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) validateField(name, value);
   };
 
-  const handleBlur = (name) => {
-    validateField(name, formData[name]);
-  };
-
   const handleSave = async () => {
-  // Validate all fields before submitting
-  const isValid = Object.keys(formData).every(key => validateField(key, formData[key]));
+    const isValid = Object.keys(formData).every((key) =>
+      validateField(key, formData[key])
+    );
 
-  if (!isValid) {
-    Alert.alert('Validation Error', 'Please fix all errors before submitting');
-    return;
-  }
+    if (!isValid) {
+      Alert.alert('Validation Error', 'Please fix all errors before submitting');
+      return;
+    }
 
-  if (!user?.$id) {
-    Alert.alert('Error', 'Authentication required. Please login again.');
-    return;
-  }
+    if (!user?.$id) {
+      Alert.alert('Error', 'Authentication required. Please login again.');
+      return;
+    }
 
-  setUploading(true);
+    setUploading(true);
 
-  try {
     const newDocument = {
+      userId: user.$id, // ⬅️ Save the user ID here!
       name: formData.name,
       department: formData.department,
       email: formData.email,
       yearOfStudy: parseInt(formData.yearOfStudy, 10),
     };
 
-    const response = await databases.createDocument(
-      DATABASE_ID,
-      COLLECTION_ID,
-      ID.unique(),
-      newDocument
-    );
+    try {
+      if (profileId) {
+        // Profile exists → update it
+        await databases.updateDocument(DATABASE_ID, COLLECTION_ID, profileId, newDocument);
+        Alert.alert('Success', 'Profile updated successfully!');
+      } else {
+        // Profile does not exist → create it
+        const response = await databases.createDocument(
+          DATABASE_ID,
+          COLLECTION_ID,
+          ID.unique(),
+          newDocument
+        );
+        setProfileId(response.$id);
+        Alert.alert('Success', 'Profile created successfully!');
+      }
 
-    Alert.alert('Success', 'Profile saved successfully!');
-
-    // Reset form
-    setFormData({
-      name: '',
-      department: '',
-      email: '',
-      yearOfStudy: '',
-    });
-
-    // ✅ Navigate AFTER alert
-    router.replace('/(tabs)/found');
-
-  } catch (error) {
-    console.error('Full error details:', {
-      message: error.message,
-      code: error.code,
-      type: error.type,
-      response: error.response,
-    });
-
-    let errorMessage = error.message;
-    if (error.response?.message?.includes('required')) {
-      errorMessage = 'Missing required fields. Check your collection attributes.';
+      router.replace('/(tabs)/found');
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      Alert.alert('Error', error.message || 'Something went wrong.');
+    } finally {
+      setUploading(false);
     }
-
-    Alert.alert('Save Failed', errorMessage);
-  } finally {
-    setUploading(false);
-  }
-};
-
+  };
 
   return (
     <KeyboardAvoidingView
@@ -145,7 +148,9 @@ const ProfilePage = () => {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
-          <Text style={styles.heading}>Complete Your Profile</Text>
+          <Text style={styles.heading}>
+            {profileId ? 'Update Your Profile' : 'Complete Your Profile'}
+          </Text>
 
           {/* Name Field */}
           <View style={styles.inputGroup}>
@@ -156,7 +161,6 @@ const ProfilePage = () => {
               placeholder="Enter your full name"
               value={formData.name}
               onChangeText={(text) => handleChange('name', text)}
-              onBlur={() => handleBlur('name')}
               style={[styles.input, errors.name && styles.inputError]}
               placeholderTextColor="#999"
               returnKeyType="next"
@@ -173,7 +177,6 @@ const ProfilePage = () => {
               placeholder="Enter your department"
               value={formData.department}
               onChangeText={(text) => handleChange('department', text)}
-              onBlur={() => handleBlur('department')}
               style={[styles.input, errors.department && styles.inputError]}
               placeholderTextColor="#999"
               returnKeyType="next"
@@ -190,7 +193,6 @@ const ProfilePage = () => {
               placeholder="Enter your college email"
               value={formData.email}
               onChangeText={(text) => handleChange('email', text)}
-              onBlur={() => handleBlur('email')}
               style={[styles.input, errors.email && styles.inputError]}
               keyboardType="email-address"
               placeholderTextColor="#999"
@@ -209,7 +211,6 @@ const ProfilePage = () => {
               placeholder="Enter your year (1-4)"
               value={formData.yearOfStudy}
               onChangeText={(text) => handleChange('yearOfStudy', text)}
-              onBlur={() => handleBlur('yearOfStudy')}
               style={[styles.input, errors.yearOfStudy && styles.inputError]}
               keyboardType="number-pad"
               placeholderTextColor="#999"
@@ -226,7 +227,9 @@ const ProfilePage = () => {
             {uploading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.saveButtonText} >Save Profile</Text>
+              <Text style={styles.saveButtonText}>
+                {profileId ? 'Update Profile' : 'Save Profile'}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
