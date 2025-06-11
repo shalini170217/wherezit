@@ -10,7 +10,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ImageBackground,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { databases, ID } from '@/lib/appwrite';
 import { Query } from 'react-native-appwrite';
 import { useAuth } from '@/lib/auth-context';
@@ -23,7 +25,7 @@ const ProfilePage = () => {
   const { user } = useAuth();
   const router = useRouter();
 
-  const [profileId, setProfileId] = useState(null); // For storing existing document ID
+  const [profileId, setProfileId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     department: '',
@@ -91,9 +93,7 @@ const ProfilePage = () => {
   };
 
   const handleSave = async () => {
-    const isValid = Object.keys(formData).every((key) =>
-      validateField(key, formData[key])
-    );
+    const isValid = Object.keys(formData).every((key) => validateField(key, formData[key]));
 
     if (!isValid) {
       Alert.alert('Validation Error', 'Please fix all errors before submitting');
@@ -108,7 +108,7 @@ const ProfilePage = () => {
     setUploading(true);
 
     const newDocument = {
-      userId: user.$id, // ⬅️ Save the user ID here!
+      userId: user.$id,
       name: formData.name,
       department: formData.department,
       email: formData.email,
@@ -117,11 +117,9 @@ const ProfilePage = () => {
 
     try {
       if (profileId) {
-        // Profile exists → update it
         await databases.updateDocument(DATABASE_ID, COLLECTION_ID, profileId, newDocument);
         Alert.alert('Success', 'Profile updated successfully!');
       } else {
-        // Profile does not exist → create it
         const response = await databases.createDocument(
           DATABASE_ID,
           COLLECTION_ID,
@@ -142,124 +140,134 @@ const ProfilePage = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.keyboardAvoidingView}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.container}>
-          <Text style={styles.heading}>
-            {profileId ? 'Update Your Profile' : 'Complete Your Profile'}
-          </Text>
-
-          {/* Name Field */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Full Name <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              placeholder="Enter your full name"
-              value={formData.name}
-              onChangeText={(text) => handleChange('name', text)}
-              style={[styles.input, errors.name && styles.inputError]}
-              placeholderTextColor="#999"
-              returnKeyType="next"
-            />
-            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-          </View>
-
-          {/* Department Field */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Department <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              placeholder="Enter your department"
-              value={formData.department}
-              onChangeText={(text) => handleChange('department', text)}
-              style={[styles.input, errors.department && styles.inputError]}
-              placeholderTextColor="#999"
-              returnKeyType="next"
-            />
-            {errors.department && <Text style={styles.errorText}>{errors.department}</Text>}
-          </View>
-
-          {/* Email Field */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              College Email <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              placeholder="Enter your college email"
-              value={formData.email}
-              onChangeText={(text) => handleChange('email', text)}
-              style={[styles.input, errors.email && styles.inputError]}
-              keyboardType="email-address"
-              placeholderTextColor="#999"
-              autoCapitalize="none"
-              returnKeyType="next"
-            />
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-          </View>
-
-          {/* Year of Study Field */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Year of Study <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              placeholder="Enter your year (1-4)"
-              value={formData.yearOfStudy}
-              onChangeText={(text) => handleChange('yearOfStudy', text)}
-              style={[styles.input, errors.yearOfStudy && styles.inputError]}
-              keyboardType="number-pad"
-              placeholderTextColor="#999"
-              maxLength={1}
-            />
-            {errors.yearOfStudy && <Text style={styles.errorText}>{errors.yearOfStudy}</Text>}
-          </View>
-
-          <TouchableOpacity
-            style={styles.saveButton}
-            onPress={handleSave}
-            disabled={uploading}
-          >
-            {uploading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.saveButtonText}>
-                {profileId ? 'Update Profile' : 'Save Profile'}
+    <SafeAreaView style={{ flex: 1 }}>
+      <ImageBackground
+        source={require('@/assets/images/prof.jpg')}
+        style={styles.bgImage}
+        resizeMode="cover"
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+            <View style={styles.container}>
+              <Text style={styles.heading}>
+                {profileId ? 'Update Your Profile' : 'Complete Your Profile'}
               </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+              {/* Name Field */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Full Name <Text style={styles.required}>*</Text>
+                </Text>
+                <TextInput
+                  placeholder="Enter your full name"
+                  value={formData.name}
+                  onChangeText={(text) => handleChange('name', text)}
+                  style={[styles.input, errors.name && styles.inputError]}
+                  placeholderTextColor="#999"
+                  returnKeyType="next"
+                />
+                {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+              </View>
+
+              {/* Department Field */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Department <Text style={styles.required}>*</Text>
+                </Text>
+                <TextInput
+                  placeholder="Enter your department"
+                  value={formData.department}
+                  onChangeText={(text) => handleChange('department', text)}
+                  style={[styles.input, errors.department && styles.inputError]}
+                  placeholderTextColor="#999"
+                  returnKeyType="next"
+                />
+                {errors.department && <Text style={styles.errorText}>{errors.department}</Text>}
+              </View>
+
+              {/* Email Field */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  College Email <Text style={styles.required}>*</Text>
+                </Text>
+                <TextInput
+                  placeholder="Enter your college email"
+                  value={formData.email}
+                  onChangeText={(text) => handleChange('email', text)}
+                  style={[styles.input, errors.email && styles.inputError]}
+                  keyboardType="email-address"
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                  returnKeyType="next"
+                />
+                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+              </View>
+
+              {/* Year of Study Field */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Year of Study <Text style={styles.required}>*</Text>
+                </Text>
+                <TextInput
+                  placeholder="Enter your year (1-4)"
+                  value={formData.yearOfStudy}
+                  onChangeText={(text) => handleChange('yearOfStudy', text)}
+                  style={[styles.input, errors.yearOfStudy && styles.inputError]}
+                  keyboardType="number-pad"
+                  placeholderTextColor="#999"
+                  maxLength={1}
+                />
+                {errors.yearOfStudy && <Text style={styles.errorText}>{errors.yearOfStudy}</Text>}
+              </View>
+
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSave}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.saveButtonText}>
+                    {profileId ? 'Update Profile' : 'Save Profile'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </ImageBackground>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  keyboardAvoidingView: {
+  bgImage: {
     flex: 1,
+    justifyContent: 'center',
   },
   scrollContainer: {
     flexGrow: 1,
-    backgroundColor: '#1e293b',
+    justifyContent: 'center',
+    padding: 20,
   },
   container: {
-    flex: 1,
-    padding: 24,
-    paddingBottom: 40,
+    backgroundColor: 'rgba(30,41,59,0.75)', // translucent background for readability
+    borderRadius: 16,
+    padding: 20,
   },
   heading: {
     color: 'white',
     fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 28,
+    marginBottom: 24,
     textAlign: 'center',
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   label: {
     color: '#f1f5f9',
@@ -271,8 +279,8 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: '#f8fafc',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 10,
     fontSize: 16,
     color: '#0f172a',
@@ -291,7 +299,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 30,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 10,
   },
   saveButtonText: {
     color: 'white',

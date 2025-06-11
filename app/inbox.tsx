@@ -4,15 +4,17 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   Alert,
+  StyleSheet,
+  ImageBackground,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useAuth } from '@/lib/auth-context';
-import { databases } from '@/lib/appwrite';
-import { Query } from 'react-native-appwrite';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/lib/auth-context';
+import { databases, ID } from '@/lib/appwrite'; // Ensure ID is imported
+import { Query } from 'react-native-appwrite';
 
 const DATABASE_ID = '68478188000863f4f39f';
 const CHATS_COLLECTION_ID = '6848f6f10000d8b57f09';
@@ -26,9 +28,7 @@ const InboxScreen = () => {
   const [senderProfiles, setSenderProfiles] = useState({});
 
   useEffect(() => {
-    if (user?.$id) {
-      fetchInbox();
-    }
+    if (user?.$id) fetchInbox();
   }, [user]);
 
   const fetchInbox = async () => {
@@ -43,7 +43,6 @@ const InboxScreen = () => {
       setChats(response.documents);
 
       const uniqueSenderIds = [...new Set(response.documents.map(msg => msg.senderId))];
-
       const profileMap = {};
 
       for (const senderId of uniqueSenderIds) {
@@ -76,11 +75,7 @@ const InboxScreen = () => {
   };
 
   const handleChatOpen = (senderId) => {
-    const senderProfile = senderProfiles[senderId] || {
-      name: 'Anonymous',
-      email: 'No email',
-    };
-
+    const senderProfile = senderProfiles[senderId] || { name: 'Anonymous', email: 'No email' };
     router.push({
       pathname: '/chat',
       params: {
@@ -91,27 +86,26 @@ const InboxScreen = () => {
   };
 
   const handleDeleteNotification = (notificationId) => {
-    Alert.alert(
-      'Delete Notification',
-      'Are you sure you want to remove this notification?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
+    Alert.alert('Delete Notification', 'Are you sure you want to remove this notification?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await databases.deleteDocument(DATABASE_ID, CHATS_COLLECTION_ID, notificationId);
             setChats(prevChats => prevChats.filter(chat => chat.$id !== notificationId));
-          },
+          } catch (error) {
+            console.error('Error deleting notification:', error);
+            Alert.alert('Error', 'Failed to delete notification.');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const renderItem = ({ item }) => {
-    const sender = senderProfiles[item.senderId] || {
-      name: 'Anonymous',
-      email: 'No email',
-    };
+    const sender = senderProfiles[item.senderId] || { name: 'Anonymous', email: 'No email' };
 
     return (
       <View style={styles.notificationCard}>
@@ -139,52 +133,114 @@ const InboxScreen = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#72d3fc" />
-        <Text style={{ color: '#fff', marginTop: 10 }}>Loading Inbox...</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={chats}
-        keyExtractor={(item) => item.$id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No messages in inbox.</Text>
+    <ImageBackground
+      source={require('@/assets/images/road.jpg')}
+      resizeMode="cover"
+      style={styles.bg}
+    >
+      <SafeAreaView style={styles.container}>
+        {/* ✅ Header with Back Button */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>My Inbox</Text>
+        </View>
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#72d3fc" />
+            <Text style={{ color: '#fff', marginTop: 10 }}>Loading Inbox...</Text>
           </View>
-        }
-      />
-    </View>
+        ) : (
+          <FlatList
+            data={chats}
+            keyExtractor={(item) => item.$id}
+            renderItem={renderItem}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No messages in inbox.</Text>
+              </View>
+            }
+          />
+        )}
+      </SafeAreaView>
+    </ImageBackground>
   );
 };
 
 export default InboxScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#26314a', padding: 16 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#26314a' },
-  emptyContainer: { marginTop: 50, alignItems: 'center' },
-  emptyText: { color: '#fff', fontSize: 16 },
+  bg: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  backButton: {
+    marginRight: 8,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    marginTop: 50,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#fff',
+    fontSize: 16,
+  },
   notificationCard: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 12,
-    elevation: 4,
+    marginHorizontal: 16,
+    marginVertical: 6,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
-  senderName: { fontSize: 16, fontWeight: 'bold', color: '#222' },
-  senderEmail: { fontSize: 12, color: '#555' },
-  messagePreview: { fontSize: 14, color: '#333', marginTop: 4 },
-  timestamp: { fontSize: 10, color: '#777', marginTop: 2 },
-  deleteButton: { padding: 4 },
+  senderName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#222',
+  },
+  senderEmail: {
+    fontSize: 12,
+    color: '#555',
+  },
+  messagePreview: {
+    fontSize: 14,
+    color: '#333',
+    marginTop: 4,
+  },
+  timestamp: {
+    fontSize: 10,
+    color: '#777',
+    marginTop: 2,
+  },
+  deleteButton: {
+    padding: 4,
+  },
 });

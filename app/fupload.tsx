@@ -8,7 +8,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
+  ImageBackground,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -16,7 +18,8 @@ import * as Location from 'expo-location';
 import { databases, storage, ID } from '../lib/appwrite';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../lib/auth-context'; // ✅ Import your auth context here
+import { useAuth } from '../lib/auth-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const DATABASE_ID = '68478188000863f4f39f';
 const COLLECTION_ID = '6847818f00228538908c';
@@ -24,7 +27,7 @@ const BUCKET_ID = '684782760015fa4dfa11';
 
 export default function UploadForm() {
   const router = useRouter();
-  const { user } = useAuth(); // ✅ Get the logged-in user
+  const { user } = useAuth();
 
   const [description, setDescription] = useState('');
   const [latitude, setLatitude] = useState('');
@@ -56,7 +59,6 @@ export default function UploadForm() {
       aspect: [4, 3],
       quality: 1,
     });
-
     if (!result.canceled) {
       setImageUri(result.assets[0].uri);
     }
@@ -129,7 +131,7 @@ export default function UploadForm() {
           longitude: long,
           date: date.toISOString().split('T')[0],
           time: time.toTimeString().split(' ')[0],
-          userId: user.$id, // ✅ Include the user ID here
+          userId: user.$id,
         }
       );
 
@@ -140,7 +142,6 @@ export default function UploadForm() {
       setTime(new Date());
 
       router.replace('/(tabs)/found');
-      
     } catch (error) {
       console.error('Error creating document:', error);
       Alert.alert('Error', 'Failed to create document');
@@ -148,114 +149,157 @@ export default function UploadForm() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.titleContainer}>
-        <Ionicons name="cloud-upload-outline" size={25} color="#000" />
-        <Text style={styles.titleText}>Upload Found Items</Text>
-      </View>
+    <ImageBackground
+      source={require('../assets/images/ik.jpg')}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.header}>
+            <Ionicons name="cloud-upload-outline" size={28} color="#fff" />
+            <Text style={styles.headerText}>Upload Found Items</Text>
+          </View>
 
-      <Text style={styles.label}>Description:</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter description"
-        value={description}
-        onChangeText={setDescription}
-      />
+          <Text style={styles.label}>Description:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter description"
+            placeholderTextColor="#ccc"
+            value={description}
+            onChangeText={setDescription}
+          />
 
-      <Text style={styles.label}>Image:</Text>
-      <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.image} />
-        ) : (
-          <Text style={styles.imagePlaceholder}>Tap to select an image</Text>
-        )}
-      </TouchableOpacity>
+          <Text style={styles.label}>Image:</Text>
+          <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.image} />
+            ) : (
+              <Text style={styles.imagePlaceholder}>Tap to select an image</Text>
+            )}
+          </TouchableOpacity>
 
-      <Text style={styles.label}>Latitude:</Text>
-      <TextInput style={styles.input} value={latitude} editable={false} />
+          <Text style={styles.label}>Latitude:</Text>
+          <TextInput style={styles.input} value={latitude} editable={false} />
 
-      <Text style={styles.label}>Longitude:</Text>
-      <TextInput style={styles.input} value={longitude} editable={false} />
+          <Text style={styles.label}>Longitude:</Text>
+          <TextInput style={styles.input} value={longitude} editable={false} />
 
-      <Text style={styles.label}>Date:</Text>
-      <TouchableOpacity
-        onPress={() => setShowDatePicker(true)}
-        style={styles.input}
-      >
-        <Text>{date.toISOString().split('T')[0]}</Text>
-      </TouchableOpacity>
-      {showDatePicker && (
-        <DateTimePicker
-          value={date}
-          mode="date"
-          display="default"
-          onChange={onChangeDate}
-        />
-      )}
+          <Text style={styles.label}>Date:</Text>
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            style={styles.input}
+          >
+            <Text style={styles.textInsideInput}>
+              {date.toISOString().split('T')[0]}
+            </Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display="default"
+              onChange={onChangeDate}
+            />
+          )}
 
-      <Text style={styles.label}>Time:</Text>
-      <TouchableOpacity
-        onPress={() => setShowTimePicker(true)}
-        style={styles.input}
-      >
-        <Text>{time.toTimeString().split(' ')[0]}</Text>
-      </TouchableOpacity>
-      {showTimePicker && (
-        <DateTimePicker
-          value={time}
-          mode="time"
-          display="default"
-          onChange={onChangeTime}
-        />
-      )}
+          <Text style={styles.label}>Time:</Text>
+          <TouchableOpacity
+            onPress={() => setShowTimePicker(true)}
+            style={styles.input}
+          >
+            <Text style={styles.textInsideInput}>
+              {time.toTimeString().split(' ')[0]}
+            </Text>
+          </TouchableOpacity>
+          {showTimePicker && (
+            <DateTimePicker
+              value={time}
+              mode="time"
+              display="default"
+              onChange={onChangeTime}
+            />
+          )}
 
-      <Button
-        title={isUploading ? 'Uploading...' : 'Submit'}
-        onPress={handleSubmit}
-        disabled={isUploading}
-      />
+          <TouchableOpacity
+            onPress={handleSubmit}
+            style={[styles.submitButton, isUploading && { opacity: 0.5 }]}
+            disabled={isUploading}
+          >
+            <Text style={styles.submitButtonText}>
+              {isUploading ? 'Uploading...' : 'Submit'}
+            </Text>
+          </TouchableOpacity>
 
-      {isUploading && <ActivityIndicator style={styles.loader} size="large" />}
-    </View>
+          {isUploading && <ActivityIndicator size="large" color="#fff" />}
+        </ScrollView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#fff', flex: 1 },
-  titleContainer: {
+  background: { flex: 1 },
+  container: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  header: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
+    justifyContent: 'center',
   },
-  titleText: { fontSize: 15, fontWeight: 'bold', marginLeft: 8 },
-  label: { fontWeight: '600', marginBottom: 2 },
+  headerText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginLeft: 10,
+  },
+  label: {
+    color: '#fff',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
   input: {
-    borderWidth: 1,
-    borderColor: '#aaa',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8,
     padding: 10,
     marginBottom: 15,
-    borderRadius: 5,
+    color: '#fff',
+  },
+  textInsideInput: {
+    color: '#fff',
   },
   imagePicker: {
-    borderWidth: 1,
-    borderColor: '#aaa',
-    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: '#fff',
+    borderRadius: 8,
     height: 200,
     marginBottom: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   image: {
     width: '100%',
     height: '100%',
-    resizeMode: 'contain',
+    resizeMode: 'cover',
+    borderRadius: 8,
   },
   imagePlaceholder: {
-    color: '#888',
+    color: '#fff',
   },
-  loader: {
-    marginTop: 20,
+  submitButton: {
+    backgroundColor: '#4f46e5',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
+
