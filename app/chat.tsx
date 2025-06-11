@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   ImageBackground,
   Image,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { databases, ID } from '@/lib/appwrite';
@@ -32,10 +33,12 @@ const ChatScreen = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchMessages = async () => {
     if (!user?.$id || !recipientId) return;
-    
+
     setLoading(true);
     try {
       const response = await databases.listDocuments(
@@ -45,20 +48,20 @@ const ChatScreen = () => {
           Query.or([
             Query.and([
               Query.equal('senderId', user.$id),
-              Query.equal('receiverId', recipientId)
+              Query.equal('receiverId', recipientId),
             ]),
             Query.and([
               Query.equal('senderId', recipientId),
-              Query.equal('receiverId', user.$id)
+              Query.equal('receiverId', user.$id),
             ]),
           ]),
           Query.orderAsc('timestamp'),
         ]
       );
-      
       setMessages(response.documents);
     } catch (error) {
       console.error('Failed to fetch messages:', error);
+      Alert.alert('Error', 'Failed to load messages. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -66,7 +69,7 @@ const ChatScreen = () => {
 
   const sendMessage = async () => {
     if (!input.trim() || !user?.$id || !recipientId) return;
-    
+
     setSending(true);
     try {
       await databases.createDocument(
@@ -80,19 +83,120 @@ const ChatScreen = () => {
           timestamp: new Date().toISOString(),
         }
       );
-      
       setInput('');
       await fetchMessages();
     } catch (error) {
       console.error('Failed to send message:', error);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
     } finally {
       setSending(false);
     }
   };
 
+  const canDeleteMessage = (message) => {
+    // Only allow deletion if:
+    // 1. User is the sender
+    // 2. Message is less than 5 minutes old
+    const isSender = message.senderId === user?.$id;
+    const messageTime = new Date(message.timestamp);
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    return isSender && messageTime > fiveMinutesAgo;
+  };
+
+  const deleteMessage = async (messageId) => {
+    setDeleting(true);
+    try {
+      await databases.deleteDocument(DATABASE_ID, CHATS_COLLECTION_ID, messageId);
+      await fetchMessages();
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      Alert.alert('Error', 'Failed to delete message. Please try again.');
+    } finally {
+      setDeleting(false);
+      setSelectedMessageId(null);
+    }
+  };
+
+  const confirmDelete = (message) => {
+    if (!canDeleteMessage(message)) {
+      Alert.alert(
+        'Cannot Delete',
+        'You can only delete your own messages within 5 minutes of sending.'
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Delete Message',
+      'Are you sure you want to delete this message?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteMessage(message.$id),
+        },
+      ]
+    );
+  };
+
   useEffect(() => {
     fetchMessages();
   }, [recipientId]);
+
+  const renderMessage = ({ item }) => {
+    const isSent = item.senderId === user?.$id;
+    const showDelete = selectedMessageId === item.$id && isSent;
+
+    return (
+      <TouchableOpacity
+        onLongPress={() => setSelectedMessageId(item.$id)}
+        activeOpacity={0.8}
+        style={[styles.messageRow, isSent ? styles.sentRow : styles.receivedRow]}
+      >
+        {!isSent && (
+          <Image
+            source={{
+              uri: `https://ui-avatars.com/api/?name=${recipientName}&background=3a4a5c&color=fff&size=64`,
+            }}
+            style={styles.avatar}
+          />
+        )}
+        <View style={[styles.message, isSent ? styles.sent : styles.received]}>
+          <Text style={styles.messageText}>{item.message}</Text>
+          <View style={styles.messageFooter}>
+            <Text style={styles.time}>
+              {new Date(item.timestamp).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+            {isSent && (
+              <Ionicons
+                name={item.$id === selectedMessageId ? 'checkmark-done' : 'checkmark'}
+                size={14}
+                color={item.$id === selectedMessageId ? '#4e9ef7' : 'rgba(255,255,255,0.5)'}
+                style={styles.readReceipt}
+              />
+            )}
+          </View>
+        </View>
+        {showDelete && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => confirmDelete(item)}
+            disabled={deleting}
+          >
+            {deleting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="trash" size={18} color="#fff" />
+            )}
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -107,18 +211,20 @@ const ChatScreen = () => {
       >
         <View style={styles.overlay} />
 
-        {/* Header with avatar */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
-
           <Image
-            source={{ uri: `https://ui-avatars.com/api/?name=${recipientName}&background=4e9ef7&color=fff&size=128` }}
+            source={{
+              uri: `https://ui-avatars.com/api/?name=${recipientName}&background=4e9ef7&color=fff&size=128`,
+            }}
             style={styles.avatarSmall}
           />
-
-          <Text style={styles.headerText}>{recipientName}</Text>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerName}>{recipientName}</Text>
+            <Text style={styles.headerStatus}>Online</Text>
+          </View>
         </View>
 
         {loading ? (
@@ -130,37 +236,19 @@ const ChatScreen = () => {
             ref={flatListRef}
             data={messages}
             keyExtractor={(item) => item.$id}
-            renderItem={({ item }) => {
-              const isSent = item.senderId === user?.$id;
-              return (
-                <View style={[styles.messageRow, isSent ? styles.sentRow : styles.receivedRow]}>
-                  {!isSent && (
-                    <Image
-                      source={{ uri: `https://ui-avatars.com/api/?name=${recipientName}&background=3a4a5c&color=fff&size=64` }}
-                      style={styles.avatar}
-                    />
-                  )}
-
-                  <View style={[styles.message, isSent ? styles.sent : styles.received]}>
-                    <Text style={styles.messageText}>{item.message}</Text>
-                    <Text style={styles.time}>
-                      {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                  </View>
-                </View>
-              );
-            }}
+            renderItem={renderMessage}
             contentContainerStyle={styles.messagesContainer}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
             ListEmptyComponent={
               <View style={styles.center}>
                 <Text style={styles.emptyText}>No messages yet</Text>
+                <Text style={styles.emptySubText}>Start the conversation!</Text>
               </View>
             }
           />
         )}
 
-        {/* Input */}
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
@@ -170,9 +258,10 @@ const ChatScreen = () => {
             onChangeText={setInput}
             editable={!sending}
             multiline
+            onSubmitEditing={sendMessage}
           />
           <TouchableOpacity
-            style={styles.sendButton}
+            style={[styles.sendButton, (!input.trim() || sending) && styles.disabledButton]}
             onPress={sendMessage}
             disabled={!input.trim() || sending}
           >
@@ -191,33 +280,44 @@ const ChatScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000',
   },
   background: {
     flex: 1,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
+    paddingTop: Platform.OS === 'ios' ? 50 : 15,
     backgroundColor: 'rgba(29, 47, 71, 0.9)',
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
+  backButton: {
+    marginRight: 10,
+  },
   avatarSmall: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginLeft: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#ccc',
   },
-  headerText: {
+  headerTextContainer: {
+    marginLeft: 12,
+  },
+  headerName: {
     color: '#fff',
     fontSize: 18,
-    marginLeft: 10,
+    fontWeight: '600',
+  },
+  headerStatus: {
+    color: '#72d3fc',
+    fontSize: 12,
   },
   center: {
     flex: 1,
@@ -226,12 +326,12 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     padding: 15,
-    paddingBottom: 70,
+    paddingBottom: 80,
   },
   messageRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   sentRow: {
     justifyContent: 'flex-end',
@@ -247,33 +347,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#ccc',
   },
   message: {
-    maxWidth: '80%',
-    borderRadius: 15,
+    maxWidth: '75%',
+    borderRadius: 18,
     padding: 12,
   },
   sent: {
-    alignSelf: 'flex-end',
     backgroundColor: '#4e9ef7',
-    borderBottomRightRadius: 2,
+    borderBottomRightRadius: 4,
   },
   received: {
-    alignSelf: 'flex-start',
     backgroundColor: '#3a4a5c',
-    borderBottomLeftRadius: 2,
+    borderBottomLeftRadius: 4,
   },
   messageText: {
     color: '#fff',
     fontSize: 16,
+    lineHeight: 22,
+  },
+  messageFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 4,
   },
   time: {
     color: 'rgba(255,255,255,0.6)',
-    fontSize: 10,
-    marginTop: 5,
-    alignSelf: 'flex-end',
+    fontSize: 11,
+    marginRight: 4,
+  },
+  readReceipt: {
+    marginLeft: 2,
+  },
+  deleteButton: {
+    marginLeft: 8,
+    backgroundColor: '#e74c3c',
+    padding: 8,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 10,
+    padding: 12,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 12,
     backgroundColor: 'rgba(29, 47, 71, 0.9)',
     borderTopWidth: 1,
     borderTopColor: '#333',
@@ -283,23 +399,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     borderRadius: 25,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     color: '#000',
-    maxHeight: 100,
+    maxHeight: 120,
+    fontSize: 16,
   },
   sendButton: {
     backgroundColor: '#4e9ef7',
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     marginLeft: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  disabledButton: {
+    backgroundColor: '#cccccc',
+  },
   emptyText: {
-    color: '#aaa',
+    color: '#fff',
     fontSize: 16,
+    marginBottom: 4,
+  },
+  emptySubText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
   },
 });
 

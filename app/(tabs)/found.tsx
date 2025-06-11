@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Ionicons } from '@expo/vector-icons';
 import { databases, storage } from '@/lib/appwrite';
 import { Query } from 'react-native-appwrite';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const screenWidth = Dimensions.get('window').width;
 const CARD_MARGIN = 12;
@@ -29,6 +30,7 @@ const FoundScreen = () => {
   const navigation = useNavigation();
   const router = useRouter();
   const { signOut, user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [searchText, setSearchText] = useState('');
   const [items, setItems] = useState([]);
@@ -148,11 +150,6 @@ const FoundScreen = () => {
       email: 'No email',
     };
 
-    console.log("Starting chat with:", {
-      recipientId: item.userId,
-      recipientName: recipientProfile.name
-    });
-
     router.push({
       pathname: '/chat',
       params: {
@@ -248,6 +245,13 @@ const FoundScreen = () => {
         <Ionicons name="cloud-upload-outline" size={20} color="black" style={{ marginRight: 8 }} />
         <Text style={styles.uploadButtonText}>Upload an Item</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.inboxButton, { top: insets.top + 60 }]}
+        onPress={() => router.push("/inbox")}
+      >
+        <Ionicons name="notifications" size={22} color="black" />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -268,6 +272,18 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'black',
     width: 340,
+  },
+  inboxButton: {
+    position: 'absolute',
+    right: 20,
+    backgroundColor: '#f9c74f',
+    borderRadius: 22,
+    width: 42,
+    height: 42,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    zIndex: 10,
   },
   headerRight: { flexDirection: 'row', alignItems: 'center', paddingRight: 10, gap: 8 },
   signOutBtn: { backgroundColor: '#72d3fc', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
