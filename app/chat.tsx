@@ -18,6 +18,8 @@ import { databases, ID } from '@/lib/appwrite';
 import { useAuth } from '@/lib/auth-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Query } from 'react-native-appwrite';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DATABASE_ID = '68478188000863f4f39f';
 const CHATS_COLLECTION_ID = '6848f6f10000d8b57f09';
@@ -28,6 +30,7 @@ const ChatScreen = () => {
   const { recipientId, recipientName } = params;
   const { user } = useAuth();
   const flatListRef = useRef(null);
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -94,9 +97,6 @@ const ChatScreen = () => {
   };
 
   const canDeleteMessage = (message) => {
-    // Only allow deletion if:
-    // 1. User is the sender
-    // 2. Message is less than 5 minutes old
     const isSender = message.senderId === user?.$id;
     const messageTime = new Date(message.timestamp);
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
@@ -199,81 +199,83 @@ const ChatScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}
-    >
-      <ImageBackground
-        source={require('@/assets/images/chatbg.jpg')}
-        style={styles.background}
-        resizeMode="cover"
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.overlay} />
+        <ImageBackground
+          source={require('@/assets/images/chatbg.jpg')}
+          style={styles.background}
+          resizeMode="cover"
+        >
+          <View style={styles.overlay} />
 
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Image
-            source={{
-              uri: `https://ui-avatars.com/api/?name=${recipientName}&background=4e9ef7&color=fff&size=128`,
-            }}
-            style={styles.avatarSmall}
-          />
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerName}>{recipientName}</Text>
-            <Text style={styles.headerStatus}>Online</Text>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Image
+              source={{
+                uri: `https://ui-avatars.com/api/?name=${recipientName}&background=4e9ef7&color=fff&size=128`,
+              }}
+              style={styles.avatarSmall}
+            />
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerName}>{recipientName}</Text>
+              <Text style={styles.headerStatus}>Online</Text>
+            </View>
           </View>
-        </View>
 
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#72d3fc" />
+          {loading ? (
+            <View style={styles.center}>
+              <ActivityIndicator size="large" color="#72d3fc" />
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              keyExtractor={(item) => item.$id}
+              renderItem={renderMessage}
+              contentContainerStyle={styles.messagesContainer}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+              onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+              ListEmptyComponent={
+                <View style={styles.center}>
+                  <Text style={styles.emptyText}>No messages yet</Text>
+                  <Text style={styles.emptySubText}>Start the conversation!</Text>
+                </View>
+              }
+            />
+          )}
+
+          <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 8 }]}>
+            <TextInput
+              style={styles.input}
+              placeholder="Type a message..."
+              placeholderTextColor="#999"
+              value={input}
+              onChangeText={setInput}
+              editable={!sending}
+              multiline
+              onSubmitEditing={sendMessage}
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (!input.trim() || sending) && styles.disabledButton]}
+              onPress={sendMessage}
+              disabled={!input.trim() || sending}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="send" size={20} color="#fff" />
+              )}
+            </TouchableOpacity>
           </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => item.$id}
-            renderItem={renderMessage}
-            contentContainerStyle={styles.messagesContainer}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            ListEmptyComponent={
-              <View style={styles.center}>
-                <Text style={styles.emptyText}>No messages yet</Text>
-                <Text style={styles.emptySubText}>Start the conversation!</Text>
-              </View>
-            }
-          />
-        )}
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Type a message..."
-            placeholderTextColor="#999"
-            value={input}
-            onChangeText={setInput}
-            editable={!sending}
-            multiline
-            onSubmitEditing={sendMessage}
-          />
-          <TouchableOpacity
-            style={[styles.sendButton, (!input.trim() || sending) && styles.disabledButton]}
-            onPress={sendMessage}
-            disabled={!input.trim() || sending}
-          >
-            {sending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons name="send" size={20} color="#fff" />
-            )}
-          </TouchableOpacity>
-        </View>
-      </ImageBackground>
-    </KeyboardAvoidingView>
+        </ImageBackground>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
@@ -388,8 +390,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 12,
-    paddingBottom: Platform.OS === 'ios' ? 25 : 12,
+    paddingHorizontal: 12,
     backgroundColor: 'rgba(29, 47, 71, 0.9)',
     borderTopWidth: 1,
     borderTopColor: '#333',
