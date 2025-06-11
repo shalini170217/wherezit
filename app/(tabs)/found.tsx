@@ -113,6 +113,7 @@ const FoundScreen = () => {
               };
             }
           } catch (error) {
+            console.error('Error fetching profile for user', userId, ':', error);
             profileMap[userId] = {
               name: 'Error loading',
               email: 'Error loading',
@@ -136,23 +137,37 @@ const FoundScreen = () => {
     router.push('/fupload');
   };
 
+  const handleStartChat = (item) => {
+    if (!item.userId || item.userId === user?.$id) {
+      console.log("Cannot chat with yourself or invalid user");
+      return;
+    }
+    
+    const recipientProfile = profiles[item.userId] || {
+      name: 'Anonymous',
+      email: 'No email',
+    };
+
+    console.log("Starting chat with:", {
+      recipientId: item.userId,
+      recipientName: recipientProfile.name
+    });
+
+    router.push({
+      pathname: '/chat',
+      params: {
+        recipientId: item.userId,
+        recipientName: recipientProfile.name,
+      },
+    });
+  };
+
   const renderCard = ({ item }) => {
     const imageUrl = imageUrls[item.$id];
     const userProfile = profiles[item.userId] || {
       name: 'Anonymous',
       email: 'No email',
       avatar: null,
-    };
-
-    const handleStartChat = () => {
-      if (!item.userId || item.userId === user?.$id) return;
-      router.push({
-        pathname: '/chat',
-        params: {
-          recipientId: item.userId,
-          recipientName: userProfile.name,
-        },
-      });
     };
 
     return (
@@ -187,7 +202,10 @@ const FoundScreen = () => {
               <Text style={styles.userEmail}>{userProfile.email}</Text>
             </View>
             {item.userId !== user?.$id && (
-              <TouchableOpacity style={styles.plusButton} onPress={handleStartChat}>
+              <TouchableOpacity 
+                style={styles.plusButton} 
+                onPress={() => handleStartChat(item)}
+              >
                 <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
               </TouchableOpacity>
             )}
