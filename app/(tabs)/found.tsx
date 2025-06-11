@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Ionicons } from '@expo/vector-icons';
 import { databases, storage } from '@/lib/appwrite';
 import { Query } from 'react-native-appwrite';
+
 const screenWidth = Dimensions.get('window').width;
 const CARD_MARGIN = 12;
 const CARD_WIDTH = (screenWidth - CARD_MARGIN * 4) / 2;
@@ -69,26 +70,16 @@ const FoundScreen = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch items
         const itemsResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_ID);
         const fetchedItems = itemsResponse.documents;
         setItems(fetchedItems);
-        console.log('Fetched items:', fetchedItems);
 
-        // Fetch images
         const urls = {};
         for (const item of fetchedItems) {
           if (item.fileId) {
             try {
               const fileView = storage.getFileView(BUCKET_ID, item.fileId);
               urls[item.$id] = fileView.toString();
-
-              // Verify the URL works
-              const response = await fetch(urls[item.$id]);
-              if (!response.ok) {
-                console.warn(`Image not found for fileId: ${item.fileId}`);
-                delete urls[item.$id];
-              }
             } catch (error) {
               console.error('Error generating URL for file', item.fileId, ':', error);
             }
@@ -96,11 +87,9 @@ const FoundScreen = () => {
         }
         setImageUrls(urls);
 
-        // Fetch profiles for all unique user IDs
         setProfileLoading(true);
         const profileMap = {};
         const uniqueUserIds = [...new Set(fetchedItems.map((item) => item.userId).filter(Boolean))];
-        console.log('Unique user IDs to fetch profiles for:', uniqueUserIds);
 
         for (const userId of uniqueUserIds) {
           try {
@@ -109,9 +98,6 @@ const FoundScreen = () => {
               PROFILE_COLLECTION_ID,
               [Query.equal('userId', userId)]
             );
-
-            console.log(`Profile response for ${userId}:`, profileResponse);
-
             if (profileResponse.documents.length > 0) {
               const profile = profileResponse.documents[0];
               profileMap[userId] = {
@@ -120,7 +106,6 @@ const FoundScreen = () => {
                 avatar: profile.avatar || null,
               };
             } else {
-              console.warn(`No profile found for userId: ${userId}`);
               profileMap[userId] = {
                 name: 'Anonymous',
                 email: 'No email',
@@ -128,7 +113,6 @@ const FoundScreen = () => {
               };
             }
           } catch (error) {
-            console.error(`Error fetching profile for userId ${userId}:`, error);
             profileMap[userId] = {
               name: 'Error loading',
               email: 'Error loading',
@@ -137,7 +121,6 @@ const FoundScreen = () => {
           }
         }
         setProfiles(profileMap);
-        console.log('Profile map:', profileMap);
       } catch (error) {
         console.error('Error in fetchData:', error);
       } finally {
@@ -161,19 +144,27 @@ const FoundScreen = () => {
       avatar: null,
     };
 
+    const handleStartChat = () => {
+      if (!item.userId || item.userId === user?.$id) return;
+      router.push({
+        pathname: '/chat',
+        params: {
+          recipientId: item.userId,
+          recipientName: userProfile.name,
+        },
+      });
+    };
+
     return (
       <View style={styles.card}>
         {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.cardImage}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: imageUrl }} style={styles.cardImage} resizeMode="cover" />
         ) : (
           <View style={[styles.cardImage, styles.noImage]}>
             <Text style={{ color: '#888' }}>No Image</Text>
           </View>
         )}
+
         <View style={styles.cardContent}>
           <Text style={styles.cardDescription} numberOfLines={2}>
             {item.description || 'No description'}
@@ -182,13 +173,10 @@ const FoundScreen = () => {
           <Text style={styles.cardDetail}>⏰ {item.time}</Text>
           <Text style={styles.cardDetail}>📍 Lat: {item.latitude}</Text>
           <Text style={styles.cardDetail}>📍 Long: {item.longitude}</Text>
-          
+
           <View style={styles.userInfoContainer}>
             {userProfile.avatar ? (
-              <Image
-                source={{ uri: userProfile.avatar }}
-                style={styles.userAvatar}
-              />
+              <Image source={{ uri: userProfile.avatar }} style={styles.userAvatar} />
             ) : (
               <View style={[styles.userAvatar, styles.defaultAvatar]}>
                 <Ionicons name="person" size={16} color="#fff" />
@@ -198,6 +186,11 @@ const FoundScreen = () => {
               <Text style={styles.userName}>{userProfile.name}</Text>
               <Text style={styles.userEmail}>{userProfile.email}</Text>
             </View>
+            {item.userId !== user?.$id && (
+              <TouchableOpacity style={styles.plusButton} onPress={handleStartChat}>
+                <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -244,17 +237,8 @@ const FoundScreen = () => {
 export default FoundScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#26314a',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 10,
-  },
+  container: { flex: 1, backgroundColor: '#26314a', paddingHorizontal: 12, paddingTop: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
   searchBar: {
     flex: 1,
     backgroundColor: '#fff',
@@ -267,48 +251,14 @@ const styles = StyleSheet.create({
     borderColor: 'black',
     width: 340,
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: 10,
-    gap: 8,
-  },
-  signOutBtn: {
-    backgroundColor: '#72d3fc',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  signOutText: {
-    color: 'black',
-    fontWeight: 'bold',
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginLeft: 8,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#26314a',
-  },
-  loadingText: {
-    color: '#fff',
-    marginTop: 10,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 50,
-  },
-  emptyText: {
-    color: '#fff',
-    fontSize: 16,
-  },
+  headerRight: { flexDirection: 'row', alignItems: 'center', paddingRight: 10, gap: 8 },
+  signOutBtn: { backgroundColor: '#72d3fc', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  signOutText: { color: 'black', fontWeight: 'bold' },
+  avatar: { width: 32, height: 32, borderRadius: 16, marginLeft: 8 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#26314a' },
+  loadingText: { color: '#fff', marginTop: 10 },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
+  emptyText: { color: '#fff', fontSize: 16 },
   uploadButton: {
     flexDirection: 'row',
     backgroundColor: '#72d3fc',
@@ -322,11 +272,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     elevation: 5,
   },
-  uploadButtonText: {
-    color: 'black',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  uploadButtonText: { color: 'black', fontSize: 16, fontWeight: 'bold' },
   card: {
     width: CARD_WIDTH,
     backgroundColor: '#f5f5f5',
@@ -340,54 +286,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  cardImage: {
-    width: '100%',
-    height: 180,
-  },
-  noImage: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#e0eaff',
-  },
-  cardContent: {
-    padding: 10,
-    gap: 4,
-  },
-  cardDescription: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#222',
-  },
-  cardDetail: {
-    fontSize: 12,
-    color: '#666',
-  },
-  userInfoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  userAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  defaultAvatar: {
-    backgroundColor: '#72d3fc',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  userTextInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
-  },
-  userEmail: {
-    fontSize: 10,
-    color: '#666',
-  },
+  cardImage: { width: '100%', height: 180 },
+  noImage: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#e0eaff' },
+  cardContent: { padding: 10, gap: 4 },
+  cardDescription: { fontSize: 14, fontWeight: '600', color: '#222' },
+  cardDetail: { fontSize: 12, color: '#666' },
+  userInfoContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  userAvatar: { width: 32, height: 32, borderRadius: 16, marginRight: 8 },
+  defaultAvatar: { backgroundColor: '#72d3fc', justifyContent: 'center', alignItems: 'center' },
+  userTextInfo: { flex: 1 },
+  userName: { fontSize: 12, fontWeight: '600', color: '#333' },
+  userEmail: { fontSize: 10, color: '#666' },
+  plusButton: { backgroundColor: '#00affa', padding: 6, borderRadius: 20, marginLeft: 8 },
 });
