@@ -6,15 +6,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { databases } from '@/lib/appwrite';
 import { Query } from 'react-native-appwrite';
+import { Ionicons } from '@expo/vector-icons';
 
 const DATABASE_ID = '68478188000863f4f39f';
-const CHATS_COLLECTION_ID = '6848f6f10000d8b57f09'; // Your chats collection ID
-const PROFILE_COLLECTION_ID = '6847c4830011d384a4d9'; // Your profile collection ID
+const CHATS_COLLECTION_ID = '6848f6f10000d8b57f09';
+const PROFILE_COLLECTION_ID = '6847c4830011d384a4d9';
 
 const InboxScreen = () => {
   const { user } = useAuth();
@@ -32,7 +34,6 @@ const InboxScreen = () => {
   const fetchInbox = async () => {
     setLoading(true);
     try {
-      // Fetch all chats where receiverId == current user
       const response = await databases.listDocuments(
         DATABASE_ID,
         CHATS_COLLECTION_ID,
@@ -41,7 +42,6 @@ const InboxScreen = () => {
 
       setChats(response.documents);
 
-      // Get unique senderIds to fetch profiles
       const uniqueSenderIds = [...new Set(response.documents.map(msg => msg.senderId))];
 
       const profileMap = {};
@@ -90,6 +90,23 @@ const InboxScreen = () => {
     });
   };
 
+  const handleDeleteNotification = (notificationId) => {
+    Alert.alert(
+      'Delete Notification',
+      'Are you sure you want to remove this notification?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setChats(prevChats => prevChats.filter(chat => chat.$id !== notificationId));
+          },
+        },
+      ]
+    );
+  };
+
   const renderItem = ({ item }) => {
     const sender = senderProfiles[item.senderId] || {
       name: 'Anonymous',
@@ -97,17 +114,28 @@ const InboxScreen = () => {
     };
 
     return (
-      <TouchableOpacity
-        style={styles.notificationCard}
-        onPress={() => handleChatOpen(item.senderId)}
-      >
-        <Text style={styles.senderName}>{sender.name}</Text>
-        <Text style={styles.senderEmail}>{sender.email}</Text>
-        <Text numberOfLines={1} style={styles.messagePreview}>
-          {item.message}
-        </Text>
-        <Text style={styles.timestamp}>{new Date(item.timestamp).toLocaleString()}</Text>
-      </TouchableOpacity>
+      <View style={styles.notificationCard}>
+        <TouchableOpacity
+          onPress={() => handleChatOpen(item.senderId)}
+          style={{ flex: 1, marginRight: 8 }}
+        >
+          <Text style={styles.senderName}>{sender.name}</Text>
+          <Text style={styles.senderEmail}>{sender.email}</Text>
+          <Text style={styles.messagePreview}>
+            You have a new message from {sender.name}
+          </Text>
+          <Text style={styles.timestamp}>
+            {new Date(item.timestamp).toLocaleString()}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => handleDeleteNotification(item.$id)}
+          style={styles.deleteButton}
+        >
+          <Ionicons name="trash" size={20} color="#ff4d4d" />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -150,9 +178,13 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
     elevation: 4,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
   senderName: { fontSize: 16, fontWeight: 'bold', color: '#222' },
   senderEmail: { fontSize: 12, color: '#555' },
   messagePreview: { fontSize: 14, color: '#333', marginTop: 4 },
   timestamp: { fontSize: 10, color: '#777', marginTop: 2 },
+  deleteButton: { padding: 4 },
 });
