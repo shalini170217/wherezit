@@ -144,13 +144,20 @@ const FoundScreen = () => {
 
     return (
       <View style={styles.card}>
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.cardImage} resizeMode="cover" />
-        ) : (
-          <View style={[styles.cardImage, styles.noImage]}>
-            <Text style={{ color: '#888' }}>No Image</Text>
+        <View>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.cardImage} resizeMode="cover" />
+          ) : (
+            <View style={[styles.cardImage, styles.noImage]}>
+              <Text style={{ color: '#888' }}>No Image</Text>
+            </View>
+          )}
+          {/* Found Tag */}
+          <View style={styles.foundTag}>
+            <Text style={styles.foundTagText}>Found</Text>
           </View>
-        )}
+        </View>
+
         <View style={styles.cardContent}>
           <Text style={styles.cardDescription} numberOfLines={2}>{item.description || 'No description'}</Text>
           <Text style={styles.cardDetail}>📅 {item.date?.slice(0, 10)}</Text>
@@ -261,4 +268,20 @@ const styles = StyleSheet.create({
   userTextInfo: { flex: 1 },
   userName: { fontSize: 11, fontWeight: '600', color: '#333' },
   plusButton: { backgroundColor: '#00affa', padding: 6, borderRadius: 20, marginLeft: 8 },
+
+  // Found Tag Style
+  foundTag: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'green',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  foundTagText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
 });

@@ -3,14 +3,13 @@ import {
   View,
   Text,
   TextInput,
-  Button,
-  Alert,
   TouchableOpacity,
   StyleSheet,
   Image,
   ImageBackground,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -22,10 +21,10 @@ import { useAuth } from '../lib/auth-context';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const DATABASE_ID = '68478188000863f4f39f';
-const COLLECTION_ID = '6847818f00228538908c';
+const COLLECTION_ID = '68497c5500165f632eef'; // LOST items collection
 const BUCKET_ID = '684782760015fa4dfa11';
 
-export default function UploadForm() {
+export default function LostUploadForm() {
   const router = useRouter();
   const { user } = useAuth();
 
@@ -69,16 +68,14 @@ export default function UploadForm() {
       Alert.alert('Error', 'Please select an image first');
       return null;
     }
-
     setIsUploading(true);
     try {
       const response = await fetch(imageUri);
       const blob = await response.blob();
-
       const file = await storage.createFile(BUCKET_ID, ID.unique(), blob);
       return file.$id;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Image upload error:', error);
       Alert.alert('Error', 'Failed to upload image');
       return null;
     } finally {
@@ -88,14 +85,12 @@ export default function UploadForm() {
 
   const onChangeDate = (event, selectedDate) => {
     setShowDatePicker(false);
-    if (event.type === 'dismissed') return;
-    if (selectedDate) setDate(selectedDate);
+    if (event.type !== 'dismissed' && selectedDate) setDate(selectedDate);
   };
 
   const onChangeTime = (event, selectedTime) => {
     setShowTimePicker(false);
-    if (event.type === 'dismissed') return;
-    if (selectedTime) setTime(selectedTime);
+    if (event.type !== 'dismissed' && selectedTime) setTime(selectedTime);
   };
 
   const handleSubmit = async () => {
@@ -103,7 +98,6 @@ export default function UploadForm() {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
-
     if (!user || !user.$id) {
       Alert.alert('Authentication Error', 'Please login again');
       return;
@@ -120,31 +114,25 @@ export default function UploadForm() {
     }
 
     try {
-      await databases.createDocument(
-        DATABASE_ID,
-        COLLECTION_ID,
-        ID.unique(),
-        {
-          description,
-          fileId: uploadedFileId,
-          latitude: lat,
-          longitude: long,
-          date: date.toISOString().split('T')[0],
-          time: time.toTimeString().split(' ')[0],
-          userId: user.$id,
-        }
-      );
+      await databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), {
+        description,
+        fileId: uploadedFileId,
+        latitude: lat,
+        longitude: long,
+        date: date.toISOString().split('T')[0],
+        time: time.toTimeString().split(' ')[0],
+        userId: user.$id,
+      });
 
-      // Reset form
       setDescription('');
       setImageUri(null);
       setDate(new Date());
       setTime(new Date());
 
-      router.replace('/(tabs)/found');
+      router.replace('/(tabs)/lost');
     } catch (error) {
-      console.error('Error creating document:', error);
-      Alert.alert('Error', 'Failed to create document');
+      console.error('Document creation error:', error);
+      Alert.alert('Error', 'Failed to create lost item record');
     }
   };
 
@@ -157,14 +145,14 @@ export default function UploadForm() {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.container}>
           <View style={styles.header}>
-            <Ionicons name="cloud-upload-outline" size={28} color="#fff" />
-            <Text style={styles.headerText}>Upload Found Items</Text>
+            <Ionicons name="alert-circle-outline" size={28} color="#fff" />
+            <Text style={styles.headerText}>Upload Lost Item</Text>
           </View>
 
           <Text style={styles.label}>Description:</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter description"
+            placeholder="Enter description of lost item"
             placeholderTextColor="#ccc"
             value={description}
             onChangeText={setDescription}
@@ -302,4 +290,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-
