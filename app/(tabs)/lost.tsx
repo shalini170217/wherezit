@@ -15,18 +15,20 @@ import { useNavigation, useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { Ionicons } from '@expo/vector-icons';
 import { databases, storage } from '@/lib/appwrite';
-import { Query } from 'react-native-appwrite';
+import { Query, ID } from 'react-native-appwrite';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const screenWidth = Dimensions.get('window').width;
 const CARD_MARGIN = 12;
 const CARD_WIDTH = (screenWidth - CARD_MARGIN * 4) / 2;
 
 const DATABASE_ID = '68478188000863f4f39f';
-const COLLECTION_ID = '68497c5500165f632eef'; // lost Items
+const COLLECTION_ID = '68497c5500165f632eef';
 const BUCKET_ID = '684782760015fa4dfa11';
 const PROFILE_COLLECTION_ID = '6847c4830011d384a4d9';
 const CHATS_COLLECTION_ID = '6848f6f10000d8b57f09';
+const SCORES_COLLECTION_ID = '684a45b5000b6e6c8f0a';
 
 const LostScreen = () => {
   const navigation = useNavigation();
@@ -55,10 +57,7 @@ const LostScreen = () => {
                 <Text style={{ color: 'black', fontWeight: 'bold' }}>Sign Out</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => router.push('/profile')}>
-                <Image
-                  source={require('../../assets/images/blue1.png')}
-                  style={{ width: 32, height: 32, borderRadius: 16, marginLeft: 8 }}
-                />
+                <Image source={require('../../assets/images/blue1.png')} style={{ width: 32, height: 32, borderRadius: 16, marginLeft: 8 }} />
               </TouchableOpacity>
             </View>
           </View>
@@ -115,63 +114,75 @@ const LostScreen = () => {
     }
   };
 
-  const handleUploadPress = () => router.push('/lupload');
+  const saveScore = async (receiverName, points) => {
+    try {
+      await databases.createDocument(DATABASE_ID, SCORES_COLLECTION_ID, ID.unique(), {
+        giverId: user?.$id,
+        giverName: profiles[user?.$id]?.name || 'Anonymous',
+        receiverName,
+        points: Number(points),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('Save Score Error:', error);
+      Alert.alert('Error', 'Failed to save score.');
+    }
+  };
+
+  const handleDeleteItem = (itemId, fileId) => {
+    router.push({ pathname: '/found-and-delete', params: { itemId, fileId } });
+  };
 
   const handleStartChat = (item) => {
     if (!item.userId || item.userId === user?.$id) return;
-    const profile = profiles[item.userId] || { name: 'Anonymous', email: 'No email' };
-    router.push({ pathname: '/chat', params: { recipientId: item.userId, recipientName: profile.name } });
+    const recipientProfile = profiles[item.userId] || { name: 'Anonymous', email: 'No email' };
+    router.push({ pathname: '/chat', params: { recipientId: item.userId, recipientName: recipientProfile.name } });
   };
 
-  const handleDelete = (item) => {
-    Alert.alert('Delete?', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, item.$id);
-            if (item.fileId) await storage.deleteFile(BUCKET_ID, item.fileId);
-            setItems((prev) => prev.filter((i) => i.$id !== item.$id));
-          } catch (error) {
-            console.error('Delete Error:', error);
-            Alert.alert('Error', 'Failed to delete.');
-          }
-        },
-      },
-    ]);
-  };
+  const handleUploadPress = () => router.push('/lupload');
 
   const renderCard = ({ item }) => {
     const imageUrl = imageUrls[item.$id];
-    const profile = profiles[item.userId] || { name: 'Anonymous', email: 'No email', avatar: null };
+    const userProfile = profiles[item.userId] || { name: 'Anonymous', email: 'No email', avatar: null };
 
     return (
       <View style={styles.card}>
         <View style={styles.tag}><Text style={styles.tagText}>Lost</Text></View>
         {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.cardImage} resizeMode="cover" />
+          <View style={{ position: 'relative' }}>
+            <Image source={{ uri: imageUrl }} style={styles.cardImage} resizeMode="cover" />
+            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.4)']} style={StyleSheet.absoluteFill} />
+          </View>
         ) : (
-          <View style={[styles.cardImage, styles.noImage]}><Text style={{ color: '#888' }}>No Image</Text></View>
+          <View style={[styles.cardImage, styles.noImage]}>
+            <Ionicons name="image-outline" size={28} color="#999" />
+            <Text style={{ color: '#999', marginTop: 4, fontSize: 12 }}>No Image</Text>
+          </View>
         )}
         <View style={styles.cardContent}>
           <Text style={styles.cardDescription} numberOfLines={2}>{item.description || 'No description'}</Text>
-          <Text style={styles.cardDetail}>📅 {item.date?.slice(0, 10)}</Text>
-          <Text style={styles.cardDetail}>⏰ {item.time}</Text>
-          <Text style={styles.cardDetail}>📍 Lat: {item.latitude}</Text>
-          <Text style={styles.cardDetail}>📍 Long: {item.longitude}</Text>
+          <Text style={styles.cardDetail}>📅 {item.date?.slice(0, 10)} ⏰ {item.time}</Text>
+          <Text style={styles.cardDetail}>📍 Lat: {Number(item.latitude).toFixed(2)}, Long: {Number(item.longitude).toFixed(2)}</Text>
           <View style={styles.userInfoContainer}>
-            {profile.avatar ? (
-              <Image source={{ uri: profile.avatar }} style={styles.userAvatar} />
+            {userProfile.avatar ? (
+              <Image source={{ uri: userProfile.avatar }} style={styles.userAvatar} />
             ) : (
-              <View style={[styles.userAvatar, styles.defaultAvatar]}><Ionicons name="person" size={16} color="#fff" /></View>
+              <View style={[styles.userAvatar, styles.defaultAvatar]}>
+                <Ionicons name="person" size={16} color="#fff" />
+              </View>
             )}
-            <View style={styles.userTextInfo}><Text style={styles.userName}>{profile.name}</Text></View>
-            {item.userId === user?.$id ? (
-              <TouchableOpacity onPress={() => handleDelete(item)} style={[styles.plusButton, { backgroundColor: '#ef4444' }]}> <Ionicons name="trash" size={18} color="#fff" /> </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={() => handleStartChat(item)} style={styles.plusButton}> <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" /> </TouchableOpacity>
+            <View style={styles.userTextInfo}>
+              <Text style={styles.userName}>{userProfile.name}</Text>
+            </View>
+            {item.userId === user?.$id && (
+              <TouchableOpacity onPress={() => handleDeleteItem(item.$id, item.fileId)} style={styles.deleteBtn}>
+                <Ionicons name="trash-outline" size={18} color="#fff" />
+              </TouchableOpacity>
+            )}
+            {item.userId !== user?.$id && (
+              <TouchableOpacity style={styles.plusButton} onPress={() => handleStartChat(item)}>
+                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
+              </TouchableOpacity>
             )}
           </View>
         </View>
@@ -193,7 +204,6 @@ const LostScreen = () => {
           style={styles.searchBar}
         />
       </View>
-
       <FlatList
         data={filteredItems}
         renderItem={renderCard}
@@ -202,12 +212,10 @@ const LostScreen = () => {
         columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 16 }}
         ListEmptyComponent={!loading && (<Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>No items found</Text>)}
       />
-
       <TouchableOpacity style={styles.uploadButton} onPress={handleUploadPress}>
         <Ionicons name="cloud-upload-outline" size={20} color="black" style={{ marginRight: 8 }} />
         <Text style={styles.uploadButtonText}>Upload an Item</Text>
       </TouchableOpacity>
-
       <TouchableOpacity
         style={[styles.inboxButton, { top: insets.top + 60 }]}
         onPress={() => {
@@ -223,6 +231,7 @@ const LostScreen = () => {
 };
 
 export default LostScreen;
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#26314a', paddingHorizontal: 12, paddingTop: 8 },
@@ -246,17 +255,18 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH, backgroundColor: '#f5f5f5', borderRadius: 12, overflow: 'hidden', marginBottom: 16, marginHorizontal: CARD_MARGIN / 2,
     shadowColor: '#c8c9cc', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
   },
-  cardImage: { width: '100%', height: 160 },
+  cardImage: { width: '100%', height: 160, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
   noImage: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#e0eaff' },
-  cardContent: { padding: 6, gap: 4 },
-  cardDescription: { fontSize: 13, fontWeight: '600', color: '#222' },
-  cardDetail: { fontSize: 11, color: '#666' },
+  cardContent: { padding: 8, gap: 6 },
+  cardDescription: { fontSize: 14, fontWeight: '600', color: '#222' },
+  cardDetail: { fontSize: 12, color: '#666' },
   userInfoContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   userAvatar: { width: 32, height: 32, borderRadius: 16, marginRight: 8 },
   defaultAvatar: { backgroundColor: '#72d3fc', justifyContent: 'center', alignItems: 'center' },
   userTextInfo: { flex: 1 },
   userName: { fontSize: 11, fontWeight: '600', color: '#333' },
-  plusButton: { backgroundColor: '#00affa', padding: 6, borderRadius: 20, marginLeft: 8 },
+  plusButton: { backgroundColor: '#00affa', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20, marginLeft: 8 },
+  deleteBtn: { backgroundColor: '#ef4444', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20, marginLeft: 8 },
   tag: { position: 'absolute', top: 8, left: 8, backgroundColor: '#ef4444', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, zIndex: 10 },
   tagText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
 });

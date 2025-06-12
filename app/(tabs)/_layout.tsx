@@ -24,6 +24,24 @@ const TabsLayout = () => {
     </View>
   );
 
+  const getTabIcon = (name) => ({ focused }) => (
+    <View
+      style={{
+        marginTop: 8,
+        paddingHorizontal: 24,
+        paddingVertical: 8,
+        borderRadius: 999,
+        backgroundColor: focused ? '#00affa' : 'rgba(0,175,250,0.2)',
+      }}
+    >
+      <MaterialIcons
+        name={name}
+        size={22}
+        color={focused ? 'black' : '#aaa'}
+      />
+    </View>
+  );
+
   return (
     <Tabs
       screenOptions={{
@@ -32,7 +50,7 @@ const TabsLayout = () => {
           borderTopWidth: 0,
           elevation: 0,
           backgroundColor: '#1c2330',
-          height: 70,
+          height: 80,
         },
         headerStyle: {
           backgroundColor: 'transparent',
@@ -45,70 +63,22 @@ const TabsLayout = () => {
       <Tabs.Screen
         name="found"
         options={{
-          headerShown: true, // or false if you don’t want header here
-          tabBarIcon: ({ focused, size }) => (
-            <View
-              style={{
-                marginTop: 8,
-                paddingHorizontal: 24,
-                paddingVertical: 8,
-                borderRadius: 999,
-                backgroundColor: focused ? '#00affa' : 'transparent',
-              }}
-            >
-              <MaterialIcons
-                name="tag"
-                size={size}
-                color={focused ? 'black' : '#aaa'}
-              />
-            </View>
-          ),
+          headerShown: true,
+          tabBarIcon: getTabIcon('tag'),
         }}
       />
       <Tabs.Screen
         name="leaderboard"
         options={{
-          headerShown: false, // 👈 if you want NO header for leaderboard screen
-          tabBarIcon: ({ focused, size }) => (
-            <View
-              style={{
-                marginTop: 8,
-                paddingHorizontal: 24,
-                paddingVertical: 8,
-                borderRadius: 999,
-                backgroundColor: focused ? '#00affa' : 'transparent',
-              }}
-            >
-              <MaterialIcons
-                name="leaderboard"
-                size={size}
-                color={focused ? 'black' : '#aaa'}
-              />
-            </View>
-          ),
+          headerShown: false,
+          tabBarIcon: getTabIcon('leaderboard'),
         }}
       />
       <Tabs.Screen
         name="lost"
         options={{
           headerShown: true,
-          tabBarIcon: ({ focused, size }) => (
-            <View
-              style={{
-                marginTop: 8,
-                paddingHorizontal: 24,
-                paddingVertical: 8,
-                borderRadius: 999,
-                backgroundColor: focused ? '#00affa' : 'transparent',
-              }}
-            >
-              <MaterialIcons
-                name="search"
-                size={size}
-                color={focused ? 'black' : '#aaa'}
-              />
-            </View>
-          ),
+          tabBarIcon: getTabIcon('search'),
         }}
       />
     </Tabs>
