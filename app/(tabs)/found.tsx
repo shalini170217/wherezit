@@ -10,11 +10,12 @@ import {
   ActivityIndicator,
   Dimensions,
   ImageBackground,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { Ionicons } from '@expo/vector-icons';
-import { databases, storage } from '@/lib/appwrite';
+import { databases, storage, ID } from '@/lib/appwrite';
 import { Query } from 'react-native-appwrite';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -27,6 +28,7 @@ const COLLECTION_ID = '6847818f00228538908c'; // Found Items
 const BUCKET_ID = '684782760015fa4dfa11';
 const PROFILE_COLLECTION_ID = '6847c4830011d384a4d9'; // Profile Collection
 const CHATS_COLLECTION_ID = '6848f6f10000d8b57f09';
+const SCORES_COLLECTION_ID = '684a45b5000b6e6c8f0a'; // Scores collection
 
 const FoundScreen = () => {
   const navigation = useNavigation();
@@ -138,6 +140,73 @@ const FoundScreen = () => {
     router.push({ pathname: '/chat', params: { recipientId: item.userId, recipientName: recipientProfile.name } });
   };
 
+  const handleDeleteItem = (itemId, fileId, itemUserId, itemUsername) => {
+    Alert.alert(
+      'Confirm Deletion',
+      'Was this item found and returned to the owner?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Found & Returned',
+          onPress: async () => {
+            try {
+              // Update Scores
+              const scoreQuery = [Query.equal('userId', itemUserId)];
+              const existingScoreDoc = await databases.listDocuments(DATABASE_ID, SCORES_COLLECTION_ID, scoreQuery);
+              const now = new Date().toISOString();
+
+              if (existingScoreDoc.documents.length > 0) {
+                const doc = existingScoreDoc.documents[0];
+                await databases.updateDocument(DATABASE_ID, SCORES_COLLECTION_ID, doc.$id, {
+                  score: doc.score + 10,
+                  matches: doc.matches + 1,
+                  lastUpdated: now,
+                });
+              } else {
+                await databases.createDocument(DATABASE_ID, SCORES_COLLECTION_ID, ID.unique(), {
+                  userId: itemUserId,
+                  username: itemUsername,
+                  score: 10,
+                  matches: 1,
+                  lastUpdated: now,
+                });
+              }
+
+              // Proceed to delete
+              await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, itemId);
+              if (fileId) {
+                await storage.deleteFile(BUCKET_ID, fileId);
+              }
+              setItems(prevItems => prevItems.filter(item => item.$id !== itemId));
+              Alert.alert('Success', 'Item marked as returned and deleted successfully!');
+            } catch (error) {
+              console.error('Error updating score & deleting:', error);
+              Alert.alert('Error', 'Failed to update score or delete the item.');
+            }
+          },
+        },
+        {
+          text: 'Just Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, itemId);
+              if (fileId) {
+                await storage.deleteFile(BUCKET_ID, fileId);
+              }
+              setItems(prevItems => prevItems.filter(item => item.$id !== itemId));
+              Alert.alert('Deleted', 'Item deleted successfully.');
+            } catch (error) {
+              console.error('Error deleting item:', error);
+              Alert.alert('Error', 'Failed to delete the item.');
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const renderCard = ({ item }) => {
     const imageUrl = imageUrls[item.$id];
     const userProfile = profiles[item.userId] || { name: 'Anonymous', email: 'No email', avatar: null };
@@ -152,7 +221,6 @@ const FoundScreen = () => {
               <Text style={{ color: '#888' }}>No Image</Text>
             </View>
           )}
-          {/* Found Tag */}
           <View style={styles.foundTag}>
             <Text style={styles.foundTagText}>Found</Text>
           </View>
@@ -164,6 +232,7 @@ const FoundScreen = () => {
           <Text style={styles.cardDetail}>⏰ {item.time}</Text>
           <Text style={styles.cardDetail}>📍 Lat: {item.latitude}</Text>
           <Text style={styles.cardDetail}>📍 Long: {item.longitude}</Text>
+
           <View style={styles.userInfoContainer}>
             {userProfile.avatar ? (
               <Image source={{ uri: userProfile.avatar }} style={styles.userAvatar} />
@@ -181,6 +250,21 @@ const FoundScreen = () => {
               </TouchableOpacity>
             )}
           </View>
+
+          {item.userId === user?.$id && (
+            <TouchableOpacity
+              style={{
+                marginTop: 6,
+                backgroundColor: '#f94144',
+                paddingVertical: 6,
+                borderRadius: 8,
+                alignItems: 'center',
+              }}
+              onPress={() => handleDeleteItem(item.$id, item.fileId, item.userId, userProfile.name)}
+            >
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 12 }}>Delete</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -268,20 +352,6 @@ const styles = StyleSheet.create({
   userTextInfo: { flex: 1 },
   userName: { fontSize: 11, fontWeight: '600', color: '#333' },
   plusButton: { backgroundColor: '#00affa', padding: 6, borderRadius: 20, marginLeft: 8 },
-
-  // Found Tag Style
-  foundTag: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: 'green',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  foundTagText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
+  foundTag: { position: 'absolute', top: 8, left: 8, backgroundColor: 'green', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  foundTagText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
 });

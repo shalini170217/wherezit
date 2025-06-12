@@ -7,9 +7,9 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  ActivityIndicator,
   Dimensions,
   ImageBackground,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
@@ -25,10 +25,10 @@ const CARD_WIDTH = (screenWidth - CARD_MARGIN * 4) / 2;
 const DATABASE_ID = '68478188000863f4f39f';
 const COLLECTION_ID = '68497c5500165f632eef'; // lost Items
 const BUCKET_ID = '684782760015fa4dfa11';
-const PROFILE_COLLECTION_ID = '6847c4830011d384a4d9'; // Profile Collection
+const PROFILE_COLLECTION_ID = '6847c4830011d384a4d9';
 const CHATS_COLLECTION_ID = '6848f6f10000d8b57f09';
 
-const lostScreen = () => {
+const LostScreen = () => {
   const navigation = useNavigation();
   const router = useRouter();
   const { signOut, user } = useAuth();
@@ -75,29 +75,22 @@ const lostScreen = () => {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const itemsResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_ID);
-      const fetchedItems = itemsResponse.documents;
+      const response = await databases.listDocuments(DATABASE_ID, COLLECTION_ID);
+      const fetchedItems = response.documents;
       setItems(fetchedItems);
 
       const urls = {};
       for (const item of fetchedItems) {
-        if (item.fileId) {
-          const fileView = storage.getFileView(BUCKET_ID, item.fileId);
-          urls[item.$id] = fileView.toString();
-        }
+        if (item.fileId) urls[item.$id] = storage.getFileView(BUCKET_ID, item.fileId).toString();
       }
       setImageUrls(urls);
 
       const profileMap = {};
-      const uniqueUserIds = [...new Set(fetchedItems.map((item) => item.userId).filter(Boolean))];
+      const uniqueUserIds = [...new Set(fetchedItems.map((i) => i.userId).filter(Boolean))];
       for (const userId of uniqueUserIds) {
-        const profileResponse = await databases.listDocuments(
-          DATABASE_ID,
-          PROFILE_COLLECTION_ID,
-          [Query.equal('userId', userId)]
-        );
-        if (profileResponse.documents.length > 0) {
-          const profile = profileResponse.documents[0];
+        const profileRes = await databases.listDocuments(DATABASE_ID, PROFILE_COLLECTION_ID, [Query.equal('userId', userId)]);
+        if (profileRes.documents.length > 0) {
+          const profile = profileRes.documents[0];
           profileMap[userId] = {
             name: profile.name || 'Anonymous',
             email: profile.email || 'No email',
@@ -107,7 +100,7 @@ const lostScreen = () => {
       }
       setProfiles(profileMap);
     } catch (error) {
-      console.error('Error in fetchItems:', error);
+      console.error('Fetch Error:', error);
     } finally {
       setLoading(false);
     }
@@ -115,46 +108,52 @@ const lostScreen = () => {
 
   const fetchNewMessages = async () => {
     try {
-      const messagesResponse = await databases.listDocuments(
-        DATABASE_ID,
-        CHATS_COLLECTION_ID,
-        [Query.equal('receiverId', user?.$id)]
-      );
-      if (messagesResponse.documents.length > 0) {
-        setHasNewMessages(true);
-      }
+      const res = await databases.listDocuments(DATABASE_ID, CHATS_COLLECTION_ID, [Query.equal('receiverId', user?.$id)]);
+      if (res.documents.length > 0) setHasNewMessages(true);
     } catch (error) {
-      console.error('Error fetching new messages:', error);
+      console.error('Message Fetch Error:', error);
     }
   };
 
-  const handleUploadPress = () => {
-    router.push('/lupload');
-  };
+  const handleUploadPress = () => router.push('/lupload');
 
   const handleStartChat = (item) => {
     if (!item.userId || item.userId === user?.$id) return;
-    const recipientProfile = profiles[item.userId] || { name: 'Anonymous', email: 'No email' };
-    router.push({ pathname: '/chat', params: { recipientId: item.userId, recipientName: recipientProfile.name } });
+    const profile = profiles[item.userId] || { name: 'Anonymous', email: 'No email' };
+    router.push({ pathname: '/chat', params: { recipientId: item.userId, recipientName: profile.name } });
+  };
+
+  const handleDelete = (item) => {
+    Alert.alert('Delete?', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, item.$id);
+            if (item.fileId) await storage.deleteFile(BUCKET_ID, item.fileId);
+            setItems((prev) => prev.filter((i) => i.$id !== item.$id));
+          } catch (error) {
+            console.error('Delete Error:', error);
+            Alert.alert('Error', 'Failed to delete.');
+          }
+        },
+      },
+    ]);
   };
 
   const renderCard = ({ item }) => {
     const imageUrl = imageUrls[item.$id];
-    const userProfile = profiles[item.userId] || { name: 'Anonymous', email: 'No email', avatar: null };
+    const profile = profiles[item.userId] || { name: 'Anonymous', email: 'No email', avatar: null };
 
     return (
       <View style={styles.card}>
-        {/* LOST TAG */}
-        <View style={styles.tag}>
-          <Text style={styles.tagText}>Lost</Text>
-        </View>
-
+        <View style={styles.tag}><Text style={styles.tagText}>Lost</Text></View>
         {imageUrl ? (
           <Image source={{ uri: imageUrl }} style={styles.cardImage} resizeMode="cover" />
         ) : (
-          <View style={[styles.cardImage, styles.noImage]}>
-            <Text style={{ color: '#888' }}>No Image</Text>
-          </View>
+          <View style={[styles.cardImage, styles.noImage]}><Text style={{ color: '#888' }}>No Image</Text></View>
         )}
         <View style={styles.cardContent}>
           <Text style={styles.cardDescription} numberOfLines={2}>{item.description || 'No description'}</Text>
@@ -163,20 +162,16 @@ const lostScreen = () => {
           <Text style={styles.cardDetail}>📍 Lat: {item.latitude}</Text>
           <Text style={styles.cardDetail}>📍 Long: {item.longitude}</Text>
           <View style={styles.userInfoContainer}>
-            {userProfile.avatar ? (
-              <Image source={{ uri: userProfile.avatar }} style={styles.userAvatar} />
+            {profile.avatar ? (
+              <Image source={{ uri: profile.avatar }} style={styles.userAvatar} />
             ) : (
-              <View style={[styles.userAvatar, styles.defaultAvatar]}>
-                <Ionicons name="person" size={16} color="#fff" />
-              </View>
+              <View style={[styles.userAvatar, styles.defaultAvatar]}><Ionicons name="person" size={16} color="#fff" /></View>
             )}
-            <View style={styles.userTextInfo}>
-              <Text style={styles.userName}>{userProfile.name}</Text>
-            </View>
-            {item.userId !== user?.$id && (
-              <TouchableOpacity style={styles.plusButton} onPress={() => handleStartChat(item)}>
-                <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
-              </TouchableOpacity>
+            <View style={styles.userTextInfo}><Text style={styles.userName}>{profile.name}</Text></View>
+            {item.userId === user?.$id ? (
+              <TouchableOpacity onPress={() => handleDelete(item)} style={[styles.plusButton, { backgroundColor: '#ef4444' }]}> <Ionicons name="trash" size={18} color="#fff" /> </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => handleStartChat(item)} style={styles.plusButton}> <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" /> </TouchableOpacity>
             )}
           </View>
         </View>
@@ -184,9 +179,7 @@ const lostScreen = () => {
     );
   };
 
-  const filteredItems = items.filter((item) =>
-    (item.description ?? '').toLowerCase().includes(searchText.toLowerCase())
-  );
+  const filteredItems = items.filter((item) => (item.description ?? '').toLowerCase().includes(searchText.toLowerCase()));
 
   return (
     <View style={styles.container}>
@@ -207,11 +200,7 @@ const lostScreen = () => {
         keyExtractor={(item) => item.$id}
         numColumns={2}
         columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 16 }}
-        ListEmptyComponent={
-          !loading && (
-            <Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>No items found</Text>
-          )
-        }
+        ListEmptyComponent={!loading && (<Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>No items found</Text>)}
       />
 
       <TouchableOpacity style={styles.uploadButton} onPress={handleUploadPress}>
@@ -233,28 +222,30 @@ const lostScreen = () => {
   );
 };
 
-export default lostScreen;
+export default LostScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#26314a', paddingHorizontal: 12, paddingTop: 8 },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderWidth: 2,
-    borderColor: 'black',
-    marginBottom: 12,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 6, borderWidth: 2, borderColor: 'black', marginBottom: 12,
   },
   searchIcon: { marginRight: 8 },
   searchBar: { flex: 1, color: 'black', fontSize: 16 },
-  inboxButton: { position: 'absolute', right: 20, backgroundColor: '#f9c74f', borderRadius: 22, width: 42, height: 42, justifyContent: 'center', alignItems: 'center', elevation: 6, zIndex: 10 },
+  inboxButton: {
+    position: 'absolute', right: 20, backgroundColor: '#f9c74f', borderRadius: 22, width: 42, height: 42,
+    justifyContent: 'center', alignItems: 'center', elevation: 6, zIndex: 10,
+  },
   notificationDot: { position: 'absolute', top: 5, right: 5, width: 10, height: 10, borderRadius: 5, backgroundColor: 'red' },
-  uploadButton: { flexDirection: 'row', backgroundColor: '#72d3fc', borderRadius: 25, paddingVertical: 12, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center', position: 'absolute', bottom: 20, alignSelf: 'center', elevation: 5 },
+  uploadButton: {
+    flexDirection: 'row', backgroundColor: '#72d3fc', borderRadius: 25, paddingVertical: 12, paddingHorizontal: 24,
+    alignItems: 'center', justifyContent: 'center', position: 'absolute', bottom: 20, alignSelf: 'center', elevation: 5,
+  },
   uploadButtonText: { color: 'black', fontSize: 16, fontWeight: 'bold' },
-  card: { width: CARD_WIDTH, backgroundColor: '#f5f5f5', borderRadius: 12, overflow: 'hidden', marginBottom: 16, marginHorizontal: CARD_MARGIN / 2, shadowColor: '#c8c9cc', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6 },
+  card: {
+    width: CARD_WIDTH, backgroundColor: '#f5f5f5', borderRadius: 12, overflow: 'hidden', marginBottom: 16, marginHorizontal: CARD_MARGIN / 2,
+    shadowColor: '#c8c9cc', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
+  },
   cardImage: { width: '100%', height: 160 },
   noImage: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#e0eaff' },
   cardContent: { padding: 6, gap: 4 },
@@ -266,20 +257,6 @@ const styles = StyleSheet.create({
   userTextInfo: { flex: 1 },
   userName: { fontSize: 11, fontWeight: '600', color: '#333' },
   plusButton: { backgroundColor: '#00affa', padding: 6, borderRadius: 20, marginLeft: 8 },
-
-  tag: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#ef4444', // Red for Lost
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    zIndex: 10,
-  },
-  tagText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
+  tag: { position: 'absolute', top: 8, left: 8, backgroundColor: '#ef4444', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, zIndex: 10 },
+  tagText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
 });

@@ -8,23 +8,17 @@ const TabsLayout = () => {
   const { signOut, user } = useAuth();
 
   const headerRightComponent = () => (
-    <View className="flex-row items-center gap-4 pr-4">
-      {/* Sign Out Button */}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingRight: 12 }}>
       <TouchableOpacity
         onPress={signOut}
-        accessibilityLabel="Sign Out"
-        className="bg-[#72d3fc] rounded-full px-6 py-2"
+        style={{ backgroundColor: '#72d3fc', borderRadius: 50, paddingHorizontal: 16, paddingVertical: 6 }}
       >
-        <Text className="text-black font-semibold">Sign Out</Text>
+        <Text style={{ color: 'black', fontWeight: 'bold' }}>Sign Out</Text>
       </TouchableOpacity>
-
-      {/* User Profile Pic */}
       <TouchableOpacity onPress={() => {}}>
         <Image
-          source={{
-            uri: user?.photo ?? 'https://i.pravatar.cc/300',
-          }}
-          className="w-8 h-8 rounded-full"
+          source={{ uri: user?.photo ?? 'https://i.pravatar.cc/300' }}
+          style={{ width: 32, height: 32, borderRadius: 16 }}
         />
       </TouchableOpacity>
     </View>
@@ -38,13 +32,11 @@ const TabsLayout = () => {
           borderTopWidth: 0,
           elevation: 0,
           backgroundColor: '#1c2330',
+          height: 70,
         },
         headerStyle: {
           backgroundColor: 'transparent',
-          shadowColor: 'transparent',
-          shadowOpacity: 0,
           elevation: 0,
-          borderBottomWidth: 0,
         },
         headerTitle: '',
         headerRight: headerRightComponent,
@@ -53,12 +45,16 @@ const TabsLayout = () => {
       <Tabs.Screen
         name="found"
         options={{
-          headerShown: true,
-          tabBarIcon: ({ focused, color, size }) => (
+          headerShown: true, // or false if you don’t want header here
+          tabBarIcon: ({ focused, size }) => (
             <View
-              className={`mt-2 pt-1 px-12 py-2 rounded-full ${
-                focused ? 'bg-[#00affa]' : 'bg-transparent'
-              }`}
+              style={{
+                marginTop: 8,
+                paddingHorizontal: 24,
+                paddingVertical: 8,
+                borderRadius: 999,
+                backgroundColor: focused ? '#00affa' : 'transparent',
+              }}
             >
               <MaterialIcons
                 name="tag"
@@ -72,12 +68,16 @@ const TabsLayout = () => {
       <Tabs.Screen
         name="leaderboard"
         options={{
-          headerShown: true,
-          tabBarIcon: ({ focused, color, size }) => (
+          headerShown: false, // 👈 if you want NO header for leaderboard screen
+          tabBarIcon: ({ focused, size }) => (
             <View
-              className={`mt-2 pt-1 px-12 py-2 rounded-full ${
-                focused ? 'bg-[#00affa]' : 'bg-transparent'
-              }`}
+              style={{
+                marginTop: 8,
+                paddingHorizontal: 24,
+                paddingVertical: 8,
+                borderRadius: 999,
+                backgroundColor: focused ? '#00affa' : 'transparent',
+              }}
             >
               <MaterialIcons
                 name="leaderboard"
@@ -92,11 +92,15 @@ const TabsLayout = () => {
         name="lost"
         options={{
           headerShown: true,
-          tabBarIcon: ({ focused, color, size }) => (
+          tabBarIcon: ({ focused, size }) => (
             <View
-              className={`mt-2 pt-1 px-12 py-2 rounded-full ${
-                focused ? 'bg-[#00affa]' : 'bg-transparent'
-              }`}
+              style={{
+                marginTop: 8,
+                paddingHorizontal: 24,
+                paddingVertical: 8,
+                borderRadius: 999,
+                backgroundColor: focused ? '#00affa' : 'transparent',
+              }}
             >
               <MaterialIcons
                 name="search"
