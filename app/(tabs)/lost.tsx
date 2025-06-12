@@ -114,23 +114,31 @@ const LostScreen = () => {
     }
   };
 
-  const saveScore = async (receiverName, points) => {
-    try {
-      await databases.createDocument(DATABASE_ID, SCORES_COLLECTION_ID, ID.unique(), {
-        giverId: user?.$id,
-        giverName: profiles[user?.$id]?.name || 'Anonymous',
-        receiverName,
-        points: Number(points),
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error('Save Score Error:', error);
-      Alert.alert('Error', 'Failed to save score.');
-    }
-  };
-
-  const handleDeleteItem = (itemId, fileId) => {
-    router.push({ pathname: '/found-and-delete', params: { itemId, fileId } });
+  const handleDeleteItem = async (itemId, fileId) => {
+    Alert.alert(
+      'Confirm Deletion',
+      'Are you sure you want to delete this item?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, itemId);
+              if (fileId) {
+                await storage.deleteFile(BUCKET_ID, fileId);
+              }
+              setItems((prevItems) => prevItems.filter((i) => i.$id !== itemId));
+              Alert.alert('Deleted', 'Item deleted successfully.');
+            } catch (error) {
+              console.error('Delete Error:', error);
+              Alert.alert('Error', 'Failed to delete item.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleStartChat = (item) => {
@@ -231,7 +239,6 @@ const LostScreen = () => {
 };
 
 export default LostScreen;
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#26314a', paddingHorizontal: 12, paddingTop: 8 },
