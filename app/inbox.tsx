@@ -13,12 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
-import { databases, ID } from '@/lib/appwrite'; // Ensure ID is imported
+import { databases } from '@/lib/appwrite';
 import { Query } from 'react-native-appwrite';
 
 const DATABASE_ID = '68478188000863f4f39f';
 const CHATS_COLLECTION_ID = '6848f6f10000d8b57f09';
 const PROFILE_COLLECTION_ID = '6847c4830011d384a4d9';
+const NOTIFICATIONS_COLLECTION_ID = '684be54c003a6abfd26a';
 
 const InboxScreen = () => {
   const { user } = useAuth();
@@ -26,9 +27,13 @@ const InboxScreen = () => {
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(false);
   const [senderProfiles, setSenderProfiles] = useState({});
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    if (user?.$id) fetchInbox();
+    if (user?.$id) {
+      fetchInbox();
+      fetchNotifications();
+    }
   }, [user]);
 
   const fetchInbox = async () => {
@@ -74,6 +79,19 @@ const InboxScreen = () => {
     }
   };
 
+  const fetchNotifications = async () => {
+    try {
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        NOTIFICATIONS_COLLECTION_ID,
+        [Query.equal('userId', user.$id), Query.orderDesc('timestamp')]
+      );
+      setNotifications(response.documents);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
   const handleChatOpen = (senderId) => {
     const senderProfile = senderProfiles[senderId] || { name: 'Anonymous', email: 'No email' };
     router.push({
@@ -93,8 +111,8 @@ const InboxScreen = () => {
         style: 'destructive',
         onPress: async () => {
           try {
-            await databases.deleteDocument(DATABASE_ID, CHATS_COLLECTION_ID, notificationId);
-            setChats(prevChats => prevChats.filter(chat => chat.$id !== notificationId));
+            await databases.deleteDocument(DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, notificationId);
+            setNotifications(prev => prev.filter(n => n.$id !== notificationId));
           } catch (error) {
             console.error('Error deleting notification:', error);
             Alert.alert('Error', 'Failed to delete notification.');
@@ -104,7 +122,7 @@ const InboxScreen = () => {
     ]);
   };
 
-  const renderItem = ({ item }) => {
+  const renderChatItem = ({ item }) => {
     const sender = senderProfiles[item.senderId] || { name: 'Anonymous', email: 'No email' };
 
     return (
@@ -133,6 +151,25 @@ const InboxScreen = () => {
     );
   };
 
+  const renderNotificationItem = ({ item }) => (
+    <View style={styles.notificationCard}>
+      <View style={{ flex: 1, marginRight: 8 }}>
+        <Text style={styles.notificationType}>{item.matchType || 'Notification'}</Text>
+        <Text style={styles.notificationMessage}>{item.message}</Text>
+        <Text style={styles.timestamp}>
+          {new Date(item.timestamp).toLocaleString()}
+        </Text>
+      </View>
+
+      <TouchableOpacity
+        onPress={() => handleDeleteNotification(item.$id)}
+        style={styles.deleteButton}
+      >
+        <Ionicons name="trash" size={20} color="#ff4d4d" />
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <ImageBackground
       source={require('@/assets/images/road.jpg')}
@@ -151,21 +188,38 @@ const InboxScreen = () => {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#72d3fc" />
-            <Text style={{ color: '#fff', marginTop: 10 }}>Loading Inbox...</Text>
+            <Text style={{ color: '#fff', marginTop: 10 }}>Loading...</Text>
           </View>
         ) : (
           <FlatList
             data={chats}
             keyExtractor={(item) => item.$id}
-            renderItem={renderItem}
-            contentContainerStyle={{ paddingBottom: 100 }}
+            renderItem={renderChatItem}
+            contentContainerStyle={{ paddingBottom: 40 }}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No messages in inbox.</Text>
+                <Text style={styles.emptyText}>No chats in inbox.</Text>
               </View>
             }
           />
         )}
+
+        {/* 🔔 Notifications Section */}
+        <View style={styles.notificationsHeader}>
+          <Text style={styles.notificationsHeaderText}>Notifications</Text>
+        </View>
+
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.$id}
+          renderItem={renderNotificationItem}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No notifications found.</Text>
+            </View>
+          }
+        />
       </SafeAreaView>
     </ImageBackground>
   );
@@ -198,13 +252,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
+  notificationsHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
+  notificationsHeaderText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   emptyContainer: {
-    marginTop: 50,
+    marginTop: 20,
     alignItems: 'center',
   },
   emptyText: {
@@ -235,10 +298,20 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 4,
   },
+  notificationType: {
+    fontSize: 12,
+    color: '#0066cc',
+    fontWeight: 'bold',
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: '#333',
+    marginTop: 4,
+  },
   timestamp: {
     fontSize: 10,
     color: '#777',
-    marginTop: 2,
+    marginTop: 4,
   },
   deleteButton: {
     padding: 4,

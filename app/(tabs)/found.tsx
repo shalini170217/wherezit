@@ -26,9 +26,10 @@ const CARD_WIDTH = (screenWidth - CARD_MARGIN * 4) / 2;
 const DATABASE_ID = '68478188000863f4f39f';
 const COLLECTION_ID = '6847818f00228538908c'; // Found Items
 const BUCKET_ID = '684782760015fa4dfa11';
-const PROFILE_COLLECTION_ID = '6847c4830011d384a4d9'; // Profile Collection
+const PROFILE_COLLECTION_ID = '6847c4830011d384a4d9';
 const CHATS_COLLECTION_ID = '6848f6f10000d8b57f09';
-const SCORES_COLLECTION_ID = '684a45b5000b6e6c8f0a'; // Scores collection
+const SCORES_COLLECTION_ID = '684a45b5000b6e6c8f0a';
+const COMMON_COLLECTION_ID = '684bd4eb001f3369c6f6'; // Common Collection
 
 const FoundScreen = () => {
   const navigation = useNavigation();
@@ -130,6 +131,20 @@ const FoundScreen = () => {
     }
   };
 
+  const addToCommonCollection = async (description, itemId) => {
+    try {
+      await databases.createDocument(DATABASE_ID, COMMON_COLLECTION_ID, ID.unique(), {
+        description,
+        itemId,
+        userId: user?.$id,
+        type: 'found',
+        createdAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('Error adding to common collection:', error);
+    }
+  };
+
   const handleUploadPress = () => {
     router.push('/fupload');
   };
@@ -150,7 +165,6 @@ const FoundScreen = () => {
           text: 'Found & Returned',
           onPress: async () => {
             try {
-              // Update Scores
               const scoreQuery = [Query.equal('userId', itemUserId)];
               const existingScoreDoc = await databases.listDocuments(DATABASE_ID, SCORES_COLLECTION_ID, scoreQuery);
               const now = new Date().toISOString();
@@ -172,7 +186,6 @@ const FoundScreen = () => {
                 });
               }
 
-              // Proceed to delete
               await databases.deleteDocument(DATABASE_ID, COLLECTION_ID, itemId);
               if (fileId) {
                 await storage.deleteFile(BUCKET_ID, fileId);
@@ -213,6 +226,13 @@ const FoundScreen = () => {
 
     return (
       <View style={styles.card}>
+        <TouchableOpacity
+          onPress={() => addToCommonCollection(item.description, item.$id)}
+          style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#00affa', borderRadius: 8, padding: 4, zIndex: 1 }}
+        >
+          <Ionicons name="sync-outline" size={16} color="white" />
+        </TouchableOpacity>
+
         <View>
           {imageUrl ? (
             <Image source={{ uri: imageUrl }} style={styles.cardImage} resizeMode="cover" />
@@ -351,6 +371,8 @@ const styles = StyleSheet.create({
   defaultAvatar: { backgroundColor: '#72d3fc', justifyContent: 'center', alignItems: 'center' },
   userTextInfo: { flex: 1 },
   userName: { fontSize: 11, fontWeight: '600', color: '#333' },
+
+
   plusButton: { backgroundColor: '#00affa', padding: 6, borderRadius: 20, marginLeft: 8 },
   foundTag: { position: 'absolute', top: 8, left: 8, backgroundColor: 'green', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
   foundTagText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
