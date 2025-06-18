@@ -1,50 +1,36 @@
-# Welcome to your Expo app 👋
+🧭 WhereZit
+WhereZit is a React Native Lost and Found application designed to help users report lost and found items, connect with finders/owners, chat, and track returns. Built for seamless use in campuses, public spaces, or city-wide networks.
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+✨ Features
+📝 Upload Lost/Found Items
+Add item images, description, date/time, and geolocation.
 
-## Get started
+Attach tags for better search and categorization.
 
-1. Install dependencies
+🔍 Smart Matching
+Uses AI (Gemini API integration) to suggest possible matches between lost and found items.
 
-   ```bash
-   npm install
-   ```
+Notifications when potential matches are found.
 
-2. Start the app
+💬 Chat System
+In-app chat between finders and owners.
 
-   ```bash
-   npx expo start
-   ```
+Start conversations with the click of a button.
 
-In the output, you'll find options to open the app in a
+🏆 Points & Rewards
+Earn points for returning found items.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Points tracked in a separate Scores collection.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+🔔 Notifications
+Real-time alerts for matched items, chat messages, and status updates.
 
-## Get a fresh project
+📂 Profile Management
+Manage your personal info, view listed lost/found items, and track rewards.
 
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+⚙️ Tech Stack
+Tech	Purpose
+React Native	Frontend with Expo Router
+Appwrite	Backend (Database, Auth, Storage)
+Gemini API	AI-powered matching of lost items
+NativeWind	Styling with Tailwind-like syntax
